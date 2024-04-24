@@ -43,7 +43,7 @@
           "chat_message_username",
         );
         const lastUsername = usernames[usernames.length - 1].innerHTML;
-        const myUsername = document.getElementById("username").innerHTML;
+        const myUsername = document.getElementById("username_value").value;
         if (isScrolledToBottom || lastUsername === myUsername) {
           chat.scrollTop = chat.scrollHeight - chat.clientHeight;
         }

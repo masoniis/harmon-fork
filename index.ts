@@ -2,7 +2,8 @@ import { html } from "common-tags";
 import { Converter } from "showdown";
 import xss from "xss";
 import crypto from "node:crypto";
-import { mkdir, symlink } from "node:fs/promises";
+import { mkdir, symlink, unlink } from "node:fs/promises";
+import path from "node:path";
 
 const dataDir = process.env.DATA_DIR ?? "data";
 const tokensDir = process.env.TOKENS_DIR ?? `${dataDir}/tokens`;
@@ -25,6 +26,28 @@ const newMessageTextarea = html`
   ></textarea>
 `;
 
+const usernameB = (username: string) => html`
+  <b
+    id="username"
+    hx-post="/edit_username"
+    hx-swap="outerHTML"
+    hx-include="#username_value"
+    hx-trigger="click"
+    >${username}</b
+  >
+`;
+
+const usernameValue = (username: string, swapOob = false) => html`
+  <input
+    id="username_value"
+    name="username"
+    type="hidden"
+    hidden
+    value="${username}"
+    ${swapOob ? `hx-swap-oob="true"` : ""}
+  />
+`;
+
 const registrations = new Set();
 const sessions: Record<string, string> = {};
 
@@ -32,8 +55,16 @@ function getTokenFile(token: string) {
   return Bun.file(`${tokensDir}/${token}`);
 }
 
+function getTokenFilePath(token: string) {
+  return path.resolve(`${tokensDir}/${token}`);
+}
+
 function getUsernameFile(username: string) {
   return Bun.file(`${usernamesDir}/${username}`);
+}
+
+function getUsernameFilePath(username: string) {
+  return path.resolve(`${usernamesDir}/${username}`);
 }
 
 async function generateToken() {
@@ -59,7 +90,7 @@ async function login(token: string) {
   }
   if (registrations.has(token)) {
     const username = await generateUsername();
-    await symlink(getTokenFile(token).name!, getUsernameFile(username).name!);
+    await symlink(getTokenFilePath(token), getUsernameFilePath(username));
     await Bun.write(getTokenFile(token), username);
     return newSessionToken(token);
   }
@@ -91,21 +122,31 @@ async function getUsername(token: string) {
   return await getTokenFile(token).text();
 }
 
+async function changeUsername(token: string, newUsername: string) {
+  const tokenFile = getTokenFile(token);
+  if (await tokenFile.exists()) {
+    const newUsernameFile = getUsernameFile(newUsername);
+    if (!(await newUsernameFile.exists())) {
+      const username = await tokenFile.text();
+      await Bun.write(tokenFile, newUsername);
+      await unlink(getUsernameFilePath(username));
+      await symlink(getTokenFilePath(token), getUsernameFilePath(newUsername));
+      return true;
+    }
+  }
+  return false;
+}
+
 let prevMessageUsername = "";
 
 const server = Bun.serve({
   async fetch(req, server) {
     const url = new URL(req.url);
-    if (url.pathname === "/index.css") {
-      return new Response(Bun.file("index.css"));
-    }
-    if (url.pathname.startsWith("/htmx")) {
-      return new Response(Bun.file(url.pathname.substring(1)));
-    }
-    if (url.pathname === "/register") {
-      return new Response(
-        html`<a id="register_link">Your token is ${await generateToken()}</a>`,
-      );
+    if (url.pathname === "/chat") {
+      const success = server.upgrade(req, { data: { stoken: null } });
+      return success
+        ? undefined
+        : new Response("WebSocket upgrade error", { status: 400 });
     }
     if (url.pathname === "/login") {
       const data = await req.formData();
@@ -120,7 +161,7 @@ const server = Bun.serve({
                 <div id="nav_area">
                   <div id="future_content"></div>
                   <div id="user_info">
-                    <b id="username">${username}</b>
+                    ${usernameB(username)} ${usernameValue(username)}
                     <p id="ws_status"></p>
                   </div>
                 </div>
@@ -147,11 +188,46 @@ const server = Bun.serve({
         headers: { "HX-Retarget": "#login_error" },
       });
     }
-    if (url.pathname === "/chat") {
-      const success = server.upgrade(req, { data: { stoken: null } });
-      return success
-        ? undefined
-        : new Response("WebSocket upgrade error", { status: 400 });
+    if (url.pathname === "/register") {
+      return new Response(
+        html`<a id="register_link">Your token is ${await generateToken()}</a>`,
+      );
+    }
+    if (url.pathname === "/index.css") {
+      return new Response(Bun.file("index.css"));
+    }
+    if (url.pathname.startsWith("/htmx")) {
+      return new Response(Bun.file(url.pathname.substring(1)));
+    }
+    if (url.pathname === "/edit_username") {
+      const data = await req.formData();
+      return new Response(html`
+        <form
+          hx-post="/set_username"
+          hx-swap="outerHTML"
+          hx-include="#session_token"
+        >
+          <input
+            autofocus
+            id="edit_username"
+            name="username"
+            value="${data.get("username")}"
+          />
+        </form>
+      `);
+    }
+    if (url.pathname === "/set_username") {
+      const data = await req.formData();
+      const stoken = data.get("session_token")?.toString();
+      if (stoken && stoken in sessions) {
+        const username = data.get("username")?.toString();
+        if (username && (await changeUsername(sessions[stoken], username))) {
+          return new Response(
+            html`${usernameB(username)}${usernameValue(username)}`,
+          );
+        }
+      }
+      return new Response("", { status: 400 });
     }
     return new Response(Bun.file("index.html"));
   },
