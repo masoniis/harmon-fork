@@ -8,8 +8,18 @@
     <main>
       <form id="login" hx-post="/login" hx-target="main">
         <label for="token">Login</label>
-        <input id="token" name="token" type="password" />
+        <input autofocus id="token" name="token" type="password" />
+        <small id="login_error"></small>
       </form>
+      <hr />
+      <a
+        id="register_link"
+        hx-post="/register"
+        hx-trigger="click"
+        hx-target="#register_link"
+        hx-swap="outerHTML"
+        >Register</a
+      >
     </main>
 
     <script>
@@ -27,6 +37,7 @@
           chat.scrollTop = chat.scrollHeight - chat.clientHeight;
         }
       });
+
       function handleNewMessageEnter(e) {
         if (e.which === 13 && !e.shiftKey) {
           if (!e.repeat) {
@@ -39,12 +50,7 @@
       }
     </script>
 
-    <script
-      src="https://unpkg.com/htmx.org@1.9.12"
-      integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
-      crossorigin="anonymous"
-    ></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/morphdom-swap.js"></script>
+    <script src="htmx/htmx.min.js"></script>
+    <script src="htmx/ws.js"></script>
   </body>
 </html>

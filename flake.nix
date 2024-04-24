@@ -11,6 +11,10 @@
             nodePackages.typescript-language-server
             nodePackages.prettier
           ];
+
+          shellHook = ''
+            ./get-htmx.sh
+          '';
         };
       });
 }

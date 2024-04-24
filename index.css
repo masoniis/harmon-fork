@@ -1,3 +1,11 @@
+* {
+  font-family: sans-serif;
+}
+
+code {
+  font-family: monospace;
+}
+
 html,
 body {
   height: 100%;
@@ -12,8 +20,15 @@ body {
 main {
   width: 100%;
   display: flex;
-  background: blue;
-  justify-content: space-around;
+  /* background: blue; */
+  margin: 10px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+hr {
+  width: 10px;
 }
 
 div#chat_area {
@@ -21,23 +36,35 @@ div#chat_area {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  flex-grow: 1;
 }
 
 div#chat_messages {
   overflow-y: scroll;
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+  gap: 5px;
 }
+
+/* div#chat_messages > div { */
+/* background: red; */
+/* } */
 
 form#login {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 5px;
 }
 
 form#chat_controls {
-  background: green;
+  /* background: green; */
   display: flex;
   align-items: flex-end;
+  padding: 5px;
+  gap: 5px;
 }
 
 textarea#new_message {
