@@ -14,6 +14,7 @@
       <hr />
       <a
         id="register_link"
+        href="#"
         hx-post="/register"
         hx-trigger="click"
         hx-target="#register_link"
@@ -23,6 +24,8 @@
     </main>
 
     <script>
+      document.body.addEventListener("htmx:wsOpen", () => {});
+
       let isScrolledToBottom = true;
       document.body.addEventListener("htmx:wsBeforeMessage", () => {
         const chat = document.getElementById("chat_messages");

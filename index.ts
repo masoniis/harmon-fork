@@ -2,15 +2,19 @@ import { html } from "common-tags";
 import { Converter } from "showdown";
 import xss from "xss";
 import crypto from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { mkdir, symlink } from "node:fs/promises";
 
 const dataDir = process.env.DATA_DIR ?? "data";
-const tokenDir = process.env.TOKEN_DIR ?? `${dataDir}/tokens`;
+const tokensDir = process.env.TOKENS_DIR ?? `${dataDir}/tokens`;
+const usernamesDir = process.env.USERNAMES_DIR ?? `${dataDir}/usernames`;
 
 await mkdir(dataDir, { recursive: true });
-await mkdir(tokenDir, { recursive: true });
+await mkdir(tokensDir, { recursive: true });
+await mkdir(usernamesDir, { recursive: true });
 
-const converter = new Converter();
+const converter = new Converter({
+  simpleLineBreaks: true,
+});
 
 const newMessageTextarea = html`
   <textarea
@@ -25,16 +29,28 @@ const registrations = new Set();
 const sessions: Record<string, string> = {};
 
 function getTokenFile(token: string) {
-  return Bun.file(`${tokenDir}/${token}`);
+  return Bun.file(`${tokensDir}/${token}`);
+}
+
+function getUsernameFile(username: string) {
+  return Bun.file(`${usernamesDir}/${username}`);
 }
 
 async function generateToken() {
   let token;
   do {
     token = crypto.randomBytes(48).toString("hex");
-  } while (await Bun.file(`${tokenDir}/${token}`).exists());
+  } while (await getTokenFile(token).exists());
   registrations.add(token);
   return token;
+}
+
+async function generateUsername() {
+  let username;
+  do {
+    username = `user${crypto.randomBytes(10).toString("hex")}`;
+  } while (await getUsernameFile(username).exists());
+  return username;
 }
 
 async function login(token: string) {
@@ -42,7 +58,9 @@ async function login(token: string) {
     return newSessionToken(token);
   }
   if (registrations.has(token)) {
-    await Bun.write(getTokenFile(token), "");
+    const username = await generateUsername();
+    await symlink(getTokenFile(token).name!, getUsernameFile(username).name!);
+    await Bun.write(getTokenFile(token), username);
     return newSessionToken(token);
   }
 }
@@ -69,6 +87,12 @@ function nextSessionToken(stoken: string) {
   }
 }
 
+async function getUsername(token: string) {
+  return await getTokenFile(token).text();
+}
+
+let prevMessageUsername = "";
+
 const server = Bun.serve({
   async fetch(req, server) {
     const url = new URL(req.url);
@@ -89,22 +113,33 @@ const server = Bun.serve({
       if (token) {
         const stoken = await login(token);
         if (stoken) {
-          return new Response(html`
-            <div id="chat_area" hx-ext="ws" ws-connect="/chat">
-              <div id="notifications"></div>
-              <div id="chat_messages"></div>
-              <form id="chat_controls" ws-send>
-                ${newMessageTextarea}
-                <input
-                  id="session_token"
-                  name="session_token"
-                  type="hidden"
-                  value="${stoken}"
-                />
-                <button type="submit">Send</button>
-              </form>
-            </div>
-          `);
+          const username = await getUsername(token);
+          if (username) {
+            return new Response(html`
+              <div id="main_area">
+                <div id="nav_area">
+                  <div id="future_content"></div>
+                  <div id="user_info">
+                    <b id="username">${username}</b>
+                  </div>
+                </div>
+                <div id="chat_area" hx-ext="ws" ws-connect="/chat">
+                  <div id="notifications"></div>
+                  <div id="chat_messages"></div>
+                  <form id="chat_controls" ws-send>
+                    ${newMessageTextarea}
+                    <input
+                      id="session_token"
+                      name="session_token"
+                      type="hidden"
+                      value="${stoken}"
+                    />
+                    <button type="submit">Send</button>
+                  </form>
+                </div>
+              </div>
+            `);
+          }
         }
       }
       return new Response("Invalid token!", {
@@ -123,7 +158,8 @@ const server = Bun.serve({
     open(ws) {
       ws.subscribe("chat-room");
     },
-    message(ws, message) {
+    async message(ws, message) {
+      console.log(message);
       const data = JSON.parse(message.toString());
       let stoken = data.session_token;
       if (stoken && stoken in sessions) {
@@ -139,11 +175,19 @@ const server = Bun.serve({
         };
         const hash = Bun.hash(JSON.stringify(entry));
 
+        const username = await getUsername(sessions[stoken]);
+
         server.publish(
           "chat-room",
           html`
             <div id="chat_messages" hx-swap-oob="beforeend">
               <div id="chat_message_${hash}" class="chat_message">
+                ${prevMessageUsername !== username
+                  ? html`
+                      <hr />
+                      <b class="chat_message_username">${username}</b>
+                    `
+                  : ""}
                 <div class="chat_message_content" hx-disable>${content}</div>
               </div>
             </div>
@@ -153,6 +197,8 @@ const server = Bun.serve({
         ws.sendText(html`
             <input id="session_token" name="session_token" type="hidden" value="${stoken}" hx-swap-oob="true"></input>
           `);
+
+        prevMessageUsername = username;
       }
     },
     close(ws) {

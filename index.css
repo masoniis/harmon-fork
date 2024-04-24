@@ -9,6 +9,7 @@ code {
 html,
 body {
   height: 100%;
+  max-height: 100%;
   padding: 0;
   margin: 0;
 }
@@ -17,8 +18,17 @@ body {
   display: flex;
 }
 
+p {
+  margin: 2px;
+}
+
+hr {
+  border: 1px solid lightgray;
+}
+
 main {
   width: 100%;
+  max-height: 100%;
   display: flex;
   /* background: blue; */
   margin: 10px;
@@ -27,8 +37,11 @@ main {
   justify-content: center;
 }
 
-hr {
-  width: 10px;
+div#main_area {
+  width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-grow: 1;
 }
 
 div#chat_area {
@@ -40,7 +53,8 @@ div#chat_area {
 }
 
 div#chat_messages {
-  overflow-y: scroll;
+  overflow-y: auto;
+  scrollbar-width: none;
   display: flex;
   flex-direction: column;
   padding: 5px;
@@ -62,11 +76,25 @@ form#login {
 form#chat_controls {
   /* background: green; */
   display: flex;
-  align-items: flex-end;
   padding: 5px;
   gap: 5px;
 }
 
 textarea#new_message {
   width: 100%;
+}
+
+div#nav_area {
+  display: flex;
+  flex-direction: column;
+}
+
+div#future_content {
+  flex-grow: 1;
+}
+
+div#user_info {
+  display: flex;
+  width: 270px;
+  align-items: stretch;
 }
