@@ -1,10 +1,14 @@
 import { html } from "common-tags";
 import { Converter } from "showdown";
 import xss from "xss";
-import crypto from "crypto";
+import crypto from "node:crypto";
+import { mkdir } from "node:fs/promises";
 
 const dataDir = process.env.DATA_DIR ?? "data";
 const tokenDir = process.env.TOKEN_DIR ?? `${dataDir}/tokens`;
+
+await mkdir(dataDir, { recursive: true });
+await mkdir(tokenDir, { recursive: true });
 
 const converter = new Converter();
 
