@@ -1,0 +1,45 @@
+html,
+body {
+  height: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  display: flex;
+}
+
+main {
+  width: 100%;
+  display: flex;
+  background: blue;
+  justify-content: space-around;
+}
+
+div#chat_area {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+div#chat_messages {
+  overflow-y: scroll;
+}
+
+form#login {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+form#chat_controls {
+  background: green;
+  display: flex;
+  align-items: flex-end;
+}
+
+textarea#new_message {
+  width: 100%;
+}

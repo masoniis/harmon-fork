@@ -1,17 +1,32 @@
 <!doctype html>
 <html>
-  <head></head>
+  <head>
+    <link rel="stylesheet" href="index.css" />
+  </head>
 
   <body>
-    <form hx-post="/login">
-      <input type="password" name="token" />
-    </form>
+    <main>
+      <form id="login" hx-post="/login" hx-target="main">
+        <label for="token">Login</label>
+        <input id="token" name="token" type="password" />
+      </form>
+    </main>
 
     <script>
-      // document.body.addEventListener("htmx:wsAfterMessage", () => {
-      //   document.getElementById("form").reset();
-      //   document.getElementById("new_message").focus();
-      // });
+      let isScrolledToBottom = true;
+      document.body.addEventListener("htmx:wsBeforeMessage", () => {
+        const chat = document.getElementById("chat_messages");
+        // allow 1px inaccuracy by adding 1
+        isScrolledToBottom =
+          chat.scrollHeight - chat.clientHeight <= chat.scrollTop + 1;
+      });
+      document.body.addEventListener("htmx:wsAfterMessage", () => {
+        const chat = document.getElementById("chat_messages");
+        // scroll to bottom if isScrolledToBottom is true
+        if (isScrolledToBottom) {
+          chat.scrollTop = chat.scrollHeight - chat.clientHeight;
+        }
+      });
       function handleNewMessageEnter(e) {
         if (e.which === 13 && !e.shiftKey) {
           if (!e.repeat) {

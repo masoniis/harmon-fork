@@ -16,14 +16,17 @@ const newMessageTextarea = html`
 const server = Bun.serve({
   async fetch(req, server) {
     const url = new URL(req.url);
+    if (url.pathname === "/index.css") {
+      return new Response(Bun.file("index.css"));
+    }
     if (url.pathname === "/login") {
       const data = await req.formData();
       console.log(data.get("token"));
       return new Response(html`
-        <div hx-ext="ws" ws-connect="/chat">
+        <div id="chat_area" hx-ext="ws" ws-connect="/chat">
           <div id="notifications"></div>
-          <div id="chat_room"></div>
-          <form id="form" ws-send>
+          <div id="chat_messages"></div>
+          <form id="chat_controls" ws-send>
             ${newMessageTextarea}
             <button type="submit">Send</button>
           </form>
@@ -40,21 +43,29 @@ const server = Bun.serve({
   },
   websocket: {
     open(ws) {
-      ws.subscribe("chat_room");
+      ws.subscribe("chat-room");
     },
     message(_ws, message) {
-      const new_message = xss(
+      const content = xss(
         converter.makeHtml(
           Bun.escapeHTML(JSON.parse(message.toString()).new_message),
         ),
       );
+      const entry = {
+        content,
+        timestamp: new Date(),
+      };
+      console.log(entry);
+      const hash = Bun.hash(JSON.stringify(entry));
       server.publish(
-        "chat_room",
+        "chat-room",
         html`
-          <div id="chat_room" hx-swap-oob="beforeend">
-            <div id="chat_message">${new_message}</div>
+          <div id="chat_messages" hx-swap-oob="beforeend">
+            <div id="chat_message_${hash}" class="chat_message">
+              <div class="chat_message_content" hx-disable>${content}</div>
+            </div>
           </div>
-          <div id="new_message" hx-swap-oob="true">${newMessageTextarea}</div>
+          ${newMessageTextarea}
         `,
       );
     },
