@@ -121,6 +121,7 @@ const server = Bun.serve({
                   <div id="future_content"></div>
                   <div id="user_info">
                     <b id="username">${username}</b>
+                    <p id="ws_status"></p>
                   </div>
                 </div>
                 <div id="chat_area" hx-ext="ws" ws-connect="/chat">
@@ -159,7 +160,6 @@ const server = Bun.serve({
       ws.subscribe("chat-room");
     },
     async message(ws, message) {
-      console.log(message);
       const data = JSON.parse(message.toString());
       let stoken = data.session_token;
       if (stoken && stoken in sessions) {
@@ -182,12 +182,12 @@ const server = Bun.serve({
           html`
             <div id="chat_messages" hx-swap-oob="beforeend">
               <div id="chat_message_${hash}" class="chat_message">
-                ${prevMessageUsername !== username
-                  ? html`
-                      <hr />
-                      <b class="chat_message_username">${username}</b>
-                    `
-                  : ""}
+                ${prevMessageUsername !== username ? html` <hr /> ` : ""}
+                <b
+                  ${prevMessageUsername === username ? "hidden" : ""}
+                  class="chat_message_username"
+                  >${username}</b
+                >
                 <div class="chat_message_content" hx-disable>${content}</div>
               </div>
             </div>
