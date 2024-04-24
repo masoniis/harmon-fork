@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head></head>
+
+  <body>
+    <form hx-post="/login">
+      <input type="password" name="token" />
+    </form>
+
+    <script>
+      // document.body.addEventListener("htmx:wsAfterMessage", () => {
+      //   document.getElementById("form").reset();
+      //   document.getElementById("new_message").focus();
+      // });
+      function handleNewMessageEnter(e) {
+        if (e.which === 13 && !e.shiftKey) {
+          if (!e.repeat) {
+            e.target.form.dispatchEvent(
+              new Event("submit", { cancelable: true }),
+            );
+          }
+          e.preventDefault();
+        }
+      }
+    </script>
+
+    <script
+      src="https://unpkg.com/htmx.org@1.9.12"
+      integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/morphdom-swap.js"></script>
+  </body>
+</html>

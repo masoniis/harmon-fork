@@ -1,0 +1,18 @@
+{
+  "name": "socket",
+  "module": "index.js",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/common-tags": "^1.8.4",
+    "@types/showdown": "^2.0.6"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "type": "module",
+  "dependencies": {
+    "common-tags": "^1.8.2",
+    "showdown": "^2.1.0",
+    "xss": "^1.0.15"
+  }
+}
