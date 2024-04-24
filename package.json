@@ -1,5 +1,5 @@
 {
-  "name": "socket",
+  "name": "harmon",
   "module": "index.js",
   "devDependencies": {
     "@types/bun": "latest",
