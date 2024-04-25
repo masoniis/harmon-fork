@@ -21,11 +21,14 @@ import sessions from "./sessions";
 import db from "./db";
 import ChatStatusMessage from "./components/ChatStatusMessage";
 
+const dataDir = process.env.DATA_DIR ?? `${cwd()}/data`;
+const chatHistoryFile =
+  process.env.CHAT_HISTORY_FILE ?? `${dataDir}/chat_history`;
+
 /*
  * Download client-side JS libraries
  */
 
-const dataDir = process.env.DATA_DIR ?? `${cwd()}/data`;
 const jsDir = `${dataDir}/js`;
 await mkdir(jsDir, { recursive: true });
 [
@@ -63,7 +66,8 @@ router
     const username = await db.read("username", token);
     if (!username) return invalid;
 
-    const messages = await Bun.file(chatHistoryFile).text();
+    const file = Bun.file(chatHistoryFile);
+    const messages = (await file.exists()) ? await file.text() : "";
 
     return new Response(MainArea(stoken, username, messages));
   })
@@ -119,13 +123,6 @@ router
     ({ file }) => new Response(Bun.file(`${import.meta.dir}/${file}`)),
   )
   .all("/js/:file", ({ file }) => new Response(Bun.file(`${jsDir}/${file}`)));
-
-/*
- * Open writer for chat history
- */
-
-const chatHistoryFile =
-  process.env.CHAT_HISTORY_FILE ?? `${dataDir}/chat_history`;
 
 /*
  * Start server and handle WebSocket connections
