@@ -137,16 +137,22 @@ async function getUsername(token: string) {
   return await getTokenFile(token).text();
 }
 
-async function changeUsername(token: string, newUsername: string) {
-  const tokenFile = getTokenFile(token);
-  if (await tokenFile.exists()) {
-    const newUsernameFile = getUsernameFile(newUsername);
-    if (!(await newUsernameFile.exists())) {
-      const username = await tokenFile.text();
-      await Bun.write(tokenFile, newUsername);
-      await unlink(getUsernameFilePath(username));
-      await symlink(getTokenFilePath(token), getUsernameFilePath(newUsername));
-      return true;
+async function changeUsername(token: string, newUsernameRaw: string) {
+  const newUsername = xss(Bun.escapeHTML(newUsernameRaw));
+  if (newUsername.length <= 24) {
+    const tokenFile = getTokenFile(token);
+    if (await tokenFile.exists()) {
+      const newUsernameFile = getUsernameFile(newUsername);
+      if (!(await newUsernameFile.exists())) {
+        const username = await tokenFile.text();
+        await Bun.write(tokenFile, newUsername);
+        await unlink(getUsernameFilePath(username));
+        await symlink(
+          getTokenFilePath(token),
+          getUsernameFilePath(newUsername),
+        );
+        return true;
+      }
     }
   }
   return false;
