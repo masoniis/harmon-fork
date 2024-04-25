@@ -1,10 +1,8 @@
+import { cwd } from "node:process";
+import { mkdir } from "node:fs/promises";
 import { html } from "common-tags";
 import { Converter } from "showdown";
 import xss from "xss";
-import crypto from "node:crypto";
-import { mkdir, symlink, unlink } from "node:fs/promises";
-import path from "node:path";
-import { cwd } from "node:process";
 import {
   Router,
   error,
@@ -18,19 +16,16 @@ import ChatMessage from "./components/ChatMessage";
 import SessionToken from "./components/SessionToken";
 import EditUsernameForm from "./components/EditUsernameForm";
 import MainArea from "./components/MainArea";
+import sessions from "./sessions";
+import db from "./db";
 
-// Ensure data directories exist
+/*
+ * Download htmx and required extensions
+ */
 
 const dataDir = process.env.DATA_DIR ?? `${cwd()}/data`;
-const tokensDir = process.env.TOKENS_DIR ?? `${dataDir}/tokens`;
-const usernamesDir = process.env.USERNAMES_DIR ?? `${dataDir}/usernames`;
 const htmxDir = `${dataDir}/htmx`;
-await mkdir(dataDir, { recursive: true });
-await mkdir(tokensDir, { recursive: true });
-await mkdir(usernamesDir, { recursive: true });
 await mkdir(htmxDir, { recursive: true });
-
-// Download htmx and required extensions
 
 Bun.write(
   `${htmxDir}/htmx.min.js`,
@@ -45,111 +40,9 @@ Bun.write(
   ).text(),
 );
 
-// Keep track of these during operation
-
-const registrations = new Set();
-const sessions: Record<string, string> = {};
-
-// Utility functions for dealing with files
-
-function getTokenFile(token: string) {
-  return Bun.file(`${tokensDir}/${token}`);
-}
-function getTokenFilePath(token: string) {
-  return path.resolve(`${tokensDir}/${token}`);
-}
-function getUsernameFile(username: string) {
-  return Bun.file(`${usernamesDir}/${username}`);
-}
-function getUsernameFilePath(username: string) {
-  return path.resolve(`${usernamesDir}/${username}`);
-}
-async function getUsername(token: string) {
-  return await getTokenFile(token).text();
-}
-
-// Random string generation
-
-async function generateToken() {
-  let token;
-  do {
-    token = crypto.randomBytes(48).toString("hex");
-  } while (await getTokenFile(token).exists());
-  registrations.add(token);
-  return token;
-}
-async function generateUsername() {
-  let username;
-  do {
-    username = `user${crypto.randomBytes(10).toString("hex")}`;
-  } while (await getUsernameFile(username).exists());
-  return username;
-}
-function generateSessionToken(token: string) {
-  return Bun.hash(
-    JSON.stringify({ token, t: new Date(), r: Math.random() }),
-  ).toString();
-}
-
-/**
- * Validate a token and return a session token, registering a new user if applicable.
+/*
+ * Establish routes
  */
-async function login(token: string) {
-  if (await getTokenFile(token).exists()) {
-    return newSessionToken(token);
-  }
-  if (registrations.has(token)) {
-    const username = await generateUsername();
-    await symlink(getTokenFilePath(token), getUsernameFilePath(username));
-    await Bun.write(getTokenFile(token), username);
-    return newSessionToken(token);
-  }
-}
-
-/**
- * Generate a session token and activate it.
- */
-function newSessionToken(token: string) {
-  const stoken = generateSessionToken(token);
-  sessions[stoken] = token;
-  return stoken;
-}
-
-/**
- * Exchange a valid session token for a new one, invalidating the old one.
- */
-function nextSessionToken(stoken: string) {
-  if (stoken in sessions) {
-    const token = sessions[stoken];
-    const newStoken = newSessionToken(stoken);
-    sessions[newStoken] = token;
-    delete sessions[stoken];
-    return newStoken;
-  }
-}
-
-/**
- * Change a user's username if it is not already taken.
- */
-async function changeUsername(token: string, newUsernameRaw: string) {
-  const newUsername = xss(Bun.escapeHTML(newUsernameRaw));
-  if (newUsername.length <= 24) {
-    const tokenFile = getTokenFile(token);
-    if (await tokenFile.exists()) {
-      const newUsernameFile = getUsernameFile(newUsername);
-      if (!(await newUsernameFile.exists())) {
-        const username = await tokenFile.text();
-        await Bun.write(tokenFile, newUsername);
-        await unlink(getUsernameFilePath(username));
-        await symlink(
-          getTokenFilePath(token),
-          getUsernameFilePath(newUsername),
-        );
-        return newUsername;
-      }
-    }
-  }
-}
 
 const router = Router({
   before: [withParams, withContent],
@@ -166,9 +59,9 @@ router
     const data = await req.formData();
     const token = data.get("token")?.toString();
     if (!token) return invalid;
-    const stoken = await login(token);
+    const stoken = await sessions.login(token);
     if (!stoken) return invalid;
-    const username = await getUsername(token);
+    const username = await db.read("username", token);
     if (!username) return invalid;
 
     return new Response(MainArea(stoken, username));
@@ -177,7 +70,9 @@ router
     "/register",
     async () =>
       new Response(
-        html`<a id="register_link">Your token is ${await generateToken()}</a>`,
+        html`<a id="register_link"
+          >Your token is ${await sessions.register()}</a
+        >`,
       ),
   )
   .post(
@@ -194,11 +89,27 @@ router
 
     const data = await req.formData();
     const stoken = data.get("session_token")?.toString();
-    if (!(stoken && stoken in sessions)) return invalid;
+    if (!stoken) return invalid;
+    const token = sessions.getLoginToken(stoken);
+    if (!token) return invalid;
     const username = data.get("username")?.toString();
     if (!username) return invalid;
-    const newUsername = await changeUsername(sessions[stoken], username);
-    if (!newUsername) return invalid;
+
+    // Must be between 3 to 24 characters
+    if (username.length < 1 || username.length > 24) return invalid;
+
+    // Must pass HTML/XSS validation
+    if (xss(Bun.escapeHTML(username)) !== username) return invalid;
+
+    const oldUsername = await db.read("username", token);
+    if (!oldUsername) return invalid;
+
+    // Ensure new username is not in database
+    if (await db.read("token", username)) return invalid;
+
+    await db.write("token", username, token);
+    await db.write("username", token, username);
+    await db.delete("token", oldUsername);
 
     return new Response(Username(username));
   })
@@ -212,8 +123,11 @@ router
     ({ file }) => new Response(Bun.file(`${htmxDir}/${file}`)),
   );
 
-let prevMessageUsername = "";
+/*
+ * Start server and handle WebSocket connections
+ */
 
+let prevMessageUsername = "";
 const server = Bun.serve({
   port: process.env.PORT ?? 3000,
   fetch(req, server) {
@@ -234,8 +148,9 @@ const server = Bun.serve({
       const data = JSON.parse(message.toString());
 
       let stoken = data.session_token;
-      if (!(stoken && stoken in sessions)) return;
-      stoken = nextSessionToken(stoken);
+      const token = sessions.getLoginToken(stoken);
+      if (!token) return;
+      stoken = await sessions.nextSessionToken(stoken);
       (ws.data as any).stoken = stoken;
 
       const content = xss(
@@ -249,7 +164,8 @@ const server = Bun.serve({
         JSON.stringify({ content, t: new Date() }),
       ).toString();
 
-      const username = await getUsername(sessions[stoken]);
+      const username = await db.read("username", token);
+      if (!username) return;
 
       server.publish(
         "chat-room",
@@ -271,7 +187,7 @@ const server = Bun.serve({
     },
     close(ws) {
       const stoken = (ws.data as any)?.stoken;
-      if (stoken) delete sessions[stoken];
+      if (stoken) sessions.delete(stoken);
     },
   },
 });
