@@ -67,9 +67,26 @@
           e.preventDefault();
         }
       }
+
+      function onVisible(element, callback) {
+        new IntersectionObserver((entries, observer) => {
+          entries.forEach((entry) => {
+            if (entry.intersectionRatio > 0) {
+              callback(element);
+              observer.disconnect();
+            }
+          });
+        }).observe(element);
+        if (!callback) return new Promise((r) => (callback = r));
+      }
+
+      function displayTime(ts) {
+        return moment(ts).format("h:mm a");
+      }
     </script>
 
     <script src="js/htmx.min.js"></script>
     <script src="js/ws.js"></script>
+    <script src="js/moment.js"></script>
   </body>
 </html>

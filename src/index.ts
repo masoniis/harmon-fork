@@ -30,6 +30,7 @@ await mkdir(jsDir, { recursive: true });
 [
   "https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js",
   "https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js",
+  "https://unpkg.com/moment@2.30.1/moment.js",
 ].map(async (url) => {
   Bun.write(
     `${jsDir}/${url.split("/").at(-1)}`,
