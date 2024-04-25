@@ -62,7 +62,9 @@ router
     const username = await db.read("username", token);
     if (!username) return invalid;
 
-    return new Response(MainArea(stoken, username));
+    const messages = await Bun.file(chatHistoryFile).text();
+
+    return new Response(MainArea(stoken, username, messages));
   })
   .post(
     "/register",
@@ -119,11 +121,29 @@ router
   .all("/js/:file", ({ file }) => new Response(Bun.file(`${jsDir}/${file}`)));
 
 /*
+ * Open writer for chat history
+ */
+
+const chatHistoryFile =
+  process.env.CHAT_HISTORY_FILE ?? `${dataDir}/chat_history`;
+const chatHistory = Bun.file(chatHistoryFile).writer();
+
+/*
  * Start server and handle WebSocket connections
  */
 
+const topic = "chat_room";
 let prevMessageUsername = "";
 let connections: Record<string, number> = {};
+
+function publish(data: string) {
+  server.publish(
+    topic,
+    html`<div id="chat_messages" hx-swap-oob="beforeend">${data}</div>`,
+  );
+  chatHistory.write(data);
+  chatHistory.flush();
+}
 
 const server = Bun.serve({
   port: process.env.PORT ?? 3000,
@@ -153,7 +173,7 @@ const server = Bun.serve({
       // On first load, subscribe to the chat room and show a status message if necessary
       if (data.first_load) {
         prevMessageUsername = "";
-        ws.subscribe("chat-room");
+        ws.subscribe(topic);
         ws.sendText(SessionToken(stoken));
 
         // Skip the status message if the user already has another open connection
@@ -163,12 +183,7 @@ const server = Bun.serve({
         }
         connections[token] = 1;
 
-        server.publish(
-          "chat-room",
-          html`<div id="chat_messages" hx-swap-oob="beforeend">
-            ${ChatStatusMessage("joined", username)}
-          </div>`,
-        );
+        publish(ChatStatusMessage("joined", username));
         return;
       }
 
@@ -180,14 +195,7 @@ const server = Bun.serve({
         }).makeHtml(data.new_message),
       );
 
-      server.publish(
-        "chat-room",
-        html`
-          <div id="chat_messages" hx-swap-oob="beforeend">
-            ${ChatMessage(content, username, prevMessageUsername === username)}
-          </div>
-        `,
-      );
+      publish(ChatMessage(content, username, prevMessageUsername === username));
       ws.sendText(SessionToken(stoken));
       ws.sendText(ChatInput());
 
@@ -210,12 +218,7 @@ const server = Bun.serve({
       if (!username) return;
 
       prevMessageUsername = "";
-      server.publish(
-        "chat-room",
-        html`<div id="chat_messages" hx-swap-oob="beforeend">
-          ${ChatStatusMessage("left", username)}
-        </div>`,
-      );
+      publish(ChatStatusMessage("left", username));
     },
   },
 });

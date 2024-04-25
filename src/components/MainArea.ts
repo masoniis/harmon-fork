@@ -2,7 +2,11 @@ import { html } from "common-tags";
 import Username from "./Username";
 import ChatInput from "./ChatInput";
 
-export default function MainArea(stoken: string, username: string) {
+export default function MainArea(
+  stoken: string,
+  username: string,
+  messages: string,
+) {
   return html`
     <div id="main_area">
       <div id="nav_area">
@@ -14,7 +18,7 @@ export default function MainArea(stoken: string, username: string) {
       </div>
       <div id="chat_area" hx-ext="ws" ws-connect="/chat">
         <div id="notifications"></div>
-        <div id="chat_messages"></div>
+        <div id="chat_messages">${messages}</div>
         <form id="chat_controls" ws-send>
           ${ChatInput()}
           <input

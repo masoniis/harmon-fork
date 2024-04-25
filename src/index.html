@@ -47,8 +47,9 @@
         const usernames = document.getElementsByClassName(
           "chat_message_username",
         );
-        if (usernames.length > 1) {
-          const lastUsername = usernames[usernames.length - 1].innerHTML;
+        if (usernames.length) {
+          const lastUsername =
+            usernames[usernames.length - 1].querySelector("b").innerHTML;
           const myUsername = document.getElementById("username_value").value;
           const chat = document.getElementById("chat_messages");
           if (isScrolledToBottom || lastUsername === myUsername) {

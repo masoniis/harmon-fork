@@ -22,9 +22,13 @@ export default function ChatMessage(
       <script>
         {
           const ts = document.getElementById("chat_message_ts_${hash}");
-          const value = ts.querySelector("input").value;
-          const span = ts.querySelector("span");
-          onVisible(ts, () => (span.innerHTML = displayTime(value)));
+          onVisible(
+            ts,
+            () =>
+              (ts.querySelector("span").innerHTML = displayTime(
+                ts.querySelector("input").value,
+              )),
+          );
         }
       </script>
     </div>
