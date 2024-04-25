@@ -16,5 +16,7 @@
             ./get-htmx.sh
           '';
         };
+
+        packages.default = pkgs.callPackage ./default.nix { };
       });
 }

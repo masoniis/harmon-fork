@@ -5,13 +5,28 @@ import crypto from "node:crypto";
 import { mkdir, symlink, unlink } from "node:fs/promises";
 import path from "node:path";
 
-const dataDir = process.env.DATA_DIR ?? "data";
+const dataDir = process.env.DATA_DIR ?? `${import.meta.dir}/data`;
 const tokensDir = process.env.TOKENS_DIR ?? `${dataDir}/tokens`;
 const usernamesDir = process.env.USERNAMES_DIR ?? `${dataDir}/usernames`;
+const htmxDir = `${dataDir}/htmx`;
 
 await mkdir(dataDir, { recursive: true });
 await mkdir(tokensDir, { recursive: true });
 await mkdir(usernamesDir, { recursive: true });
+await mkdir(htmxDir, { recursive: true });
+
+Bun.write(
+  `${htmxDir}/htmx.min.js`,
+  await (
+    await fetch("https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js")
+  ).text(),
+);
+Bun.write(
+  `${htmxDir}/ws.js`,
+  await (
+    await fetch("https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js")
+  ).text(),
+);
 
 const converter = new Converter({
   simpleLineBreaks: true,
@@ -194,10 +209,12 @@ const server = Bun.serve({
       );
     }
     if (url.pathname === "/index.css") {
-      return new Response(Bun.file("index.css"));
+      return new Response(Bun.file(`${import.meta.dir}/index.css`));
     }
     if (url.pathname.startsWith("/htmx")) {
-      return new Response(Bun.file(url.pathname.substring(1)));
+      return new Response(
+        Bun.file(path.join(htmxDir, url.pathname.split("/").at(2) ?? "")),
+      );
     }
     if (url.pathname === "/edit_username") {
       const data = await req.formData();
@@ -229,7 +246,7 @@ const server = Bun.serve({
       }
       return new Response("", { status: 400 });
     }
-    return new Response(Bun.file("index.html"));
+    return new Response(Bun.file(`${import.meta.dir}/index.html`));
   },
   websocket: {
     open(ws) {
