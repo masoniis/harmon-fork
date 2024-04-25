@@ -2,10 +2,12 @@ import { html } from "common-tags";
 
 export default function ChatMessage(
   content: string,
-  hash: string,
   username: string,
   hideUsername: boolean,
 ) {
+  const hash = Bun.hash(
+    JSON.stringify({ content, username, t: new Date() }),
+  ).toString();
   return html`
     <div id="chat_message_${hash}" class="chat_message">
       ${hideUsername ? "" : html`<hr />`}

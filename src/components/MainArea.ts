@@ -9,7 +9,7 @@ export default function MainArea(stoken: string, username: string) {
         <div id="future_content"></div>
         <div id="user_info">
           ${Username(username)}
-          <p id="ws_status"></p>
+          <p id="ws_status">Connecting...</p>
         </div>
       </div>
       <div id="chat_area" hx-ext="ws" ws-connect="/chat">

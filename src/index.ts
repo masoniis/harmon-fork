@@ -18,6 +18,7 @@ import EditUsernameForm from "./components/EditUsernameForm";
 import MainArea from "./components/MainArea";
 import sessions from "./sessions";
 import db from "./db";
+import ChatStatusMessage from "./components/ChatStatusMessage";
 
 /*
  * Download htmx and required extensions
@@ -128,6 +129,8 @@ router
  */
 
 let prevMessageUsername = "";
+let connections: Record<string, number> = {};
+
 const server = Bun.serve({
   port: process.env.PORT ?? 3000,
   fetch(req, server) {
@@ -140,18 +143,40 @@ const server = Bun.serve({
     return router.fetch(req);
   },
   websocket: {
-    open(ws) {
-      prevMessageUsername = "";
-      ws.subscribe("chat-room");
-    },
     async message(ws, message) {
       const data = JSON.parse(message.toString());
 
+      // Always require valid session tokens
       let stoken = data.session_token;
       const token = sessions.getLoginToken(stoken);
       if (!token) return;
       stoken = await sessions.nextSessionToken(stoken);
       (ws.data as any).stoken = stoken;
+
+      const username = await db.read("username", token);
+      if (!username) return;
+
+      // On first load, subscribe to the chat room and show a status message if necessary
+      if (data.first_load) {
+        prevMessageUsername = "";
+        ws.subscribe("chat-room");
+        ws.sendText(SessionToken(stoken));
+
+        // Skip the status message if the user already has another open connection
+        if (token in connections) {
+          connections[token]++;
+          return;
+        }
+        connections[token] = 1;
+
+        server.publish(
+          "chat-room",
+          html`<div id="chat_messages" hx-swap-oob="beforeend">
+            ${ChatStatusMessage("joined", username)}
+          </div>`,
+        );
+        return;
+      }
 
       const content = xss(
         new Converter({
@@ -160,23 +185,12 @@ const server = Bun.serve({
           ghCodeBlocks: true,
         }).makeHtml(data.new_message),
       );
-      const hash = Bun.hash(
-        JSON.stringify({ content, t: new Date() }),
-      ).toString();
-
-      const username = await db.read("username", token);
-      if (!username) return;
 
       server.publish(
         "chat-room",
         html`
           <div id="chat_messages" hx-swap-oob="beforeend">
-            ${ChatMessage(
-              content,
-              hash,
-              username,
-              prevMessageUsername === username,
-            )}
+            ${ChatMessage(content, username, prevMessageUsername === username)}
           </div>
         `,
       );
@@ -185,9 +199,29 @@ const server = Bun.serve({
 
       prevMessageUsername = username;
     },
-    close(ws) {
+    async close(ws) {
       const stoken = (ws.data as any)?.stoken;
-      if (stoken) sessions.delete(stoken);
+      if (!stoken) return;
+
+      // Always delete a stoken regardless of whether it is valid
+      const token = sessions.getLoginToken(stoken);
+      sessions.delete(stoken);
+
+      // Skip the status message if there are still other open connections
+      if (!token || !(token in connections)) return;
+      if (--connections[token] > 0) return;
+      delete connections[token];
+
+      const username = await db.read("username", token);
+      if (!username) return;
+
+      prevMessageUsername = "";
+      server.publish(
+        "chat-room",
+        html`<div id="chat_messages" hx-swap-oob="beforeend">
+          ${ChatStatusMessage("left", username)}
+        </div>`,
+      );
     },
   },
 });

@@ -24,8 +24,14 @@
     </main>
 
     <script>
-      document.body.addEventListener("htmx:wsOpen", () => {
+      document.body.addEventListener("htmx:wsOpen", (e) => {
         document.getElementById("ws_status").innerHTML = "Connected";
+        e.detail.socketWrapper.send(
+          JSON.stringify({
+            first_load: true,
+            session_token: document.getElementById("session_token").value,
+          }),
+        );
       });
       document.body.addEventListener("htmx:wsClose", () => {
         document.getElementById("ws_status").innerHTML = "No connection!";
