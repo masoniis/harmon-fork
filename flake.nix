@@ -13,6 +13,9 @@
           ];
         };
 
-        packages.default = pkgs.callPackage ./default.nix { };
+        packages.default = pkgs.callPackage ./default.nix {
+          nodeOutputHash =
+            "sha256-Z10u5PVyNiuODMLD5QcmWLEA4OkO8xoOo8giViA8+Uk=";
+        };
       });
 }

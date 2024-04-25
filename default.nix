@@ -1,9 +1,9 @@
-{ stdenv, lib, bun, makeBinaryWrapper }:
+{ stdenv, lib, bun, makeBinaryWrapper, nodeOutputHash }:
 let
   src = ./.;
   version = "pre-alpha";
   node_modules = stdenv.mkDerivation {
-    pname = "haron-node_modules";
+    pname = "harmon-node_modules";
     inherit src version;
     impureEnvVars = lib.fetchers.proxyImpureEnvVars
       ++ [ "GIT_PROXY_COMMAND" "SOCKS_SERVER" ];
@@ -17,7 +17,7 @@ let
 
       cp -R ./node_modules $out
     '';
-    outputHash = "sha256-lYR39rBoKsL6Yl3uC94yzDSI9HlvQf/s4jbF7D/Y2OU=";
+    outputHash = nodeOutputHash;
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
