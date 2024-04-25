@@ -12,6 +12,12 @@ import {
   withParams,
   html as ittyHtml,
 } from "itty-router";
+import Username from "./components/Username";
+import ChatInput from "./components/ChatInput";
+import ChatMessage from "./components/ChatMessage";
+import SessionToken from "./components/SessionToken";
+import EditUsernameForm from "./components/EditUsernameForm";
+import MainArea from "./components/MainArea";
 
 // Ensure data directories exist
 
@@ -38,37 +44,6 @@ Bun.write(
     await fetch("https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js")
   ).text(),
 );
-
-// Reused HTML components
-
-const newMessageTextarea = html`
-  <textarea
-    autofocus
-    id="new_message"
-    name="new_message"
-    onkeydown="handleNewMessageEnter(event)"
-  ></textarea>
-`;
-const usernameB = (username: string) => html`
-  <b
-    id="username"
-    hx-post="/edit_username"
-    hx-swap="outerHTML"
-    hx-include="#username_value"
-    hx-trigger="click"
-    >${username}</b
-  >
-`;
-const usernameValue = (username: string, swapOob = false) => html`
-  <input
-    id="username_value"
-    name="username"
-    type="hidden"
-    hidden
-    value="${username}"
-    ${swapOob ? `hx-swap-oob="true"` : ""}
-  />
-`;
 
 // Keep track of these during operation
 
@@ -196,31 +171,7 @@ router
     const username = await getUsername(token);
     if (!username) return invalid;
 
-    return new Response(html`
-      <div id="main_area">
-        <div id="nav_area">
-          <div id="future_content"></div>
-          <div id="user_info">
-            ${usernameB(username)} ${usernameValue(username)}
-            <p id="ws_status"></p>
-          </div>
-        </div>
-        <div id="chat_area" hx-ext="ws" ws-connect="/chat">
-          <div id="notifications"></div>
-          <div id="chat_messages"></div>
-          <form id="chat_controls" ws-send>
-            ${newMessageTextarea}
-            <input
-              id="session_token"
-              name="session_token"
-              type="hidden"
-              value="${stoken}"
-            />
-            <button type="submit">Send</button>
-          </form>
-        </div>
-      </div>
-    `);
+    return new Response(MainArea(stoken, username));
   })
   .post(
     "/register",
@@ -232,20 +183,11 @@ router
   .post(
     "/edit_username",
     async (req) =>
-      new Response(html`
-        <form
-          hx-post="/set_username"
-          hx-swap="outerHTML"
-          hx-include="#session_token"
-        >
-          <input
-            autofocus
-            id="edit_username"
-            name="username"
-            value="${(await req.formData())?.get("username")}"
-          />
-        </form>
-      `),
+      new Response(
+        EditUsernameForm(
+          (await req.formData())?.get("username")?.toString() ?? "",
+        ),
+      ),
   )
   .post("/set_username", async (req) => {
     const invalid = new Response("Invalid username!", { status: 400 });
@@ -258,9 +200,7 @@ router
     const newUsername = await changeUsername(sessions[stoken], username);
     if (!newUsername) return invalid;
 
-    return new Response(
-      html`${usernameB(newUsername)}${usernameValue(newUsername)}`,
-    );
+    return new Response(Username(username));
   })
   .get("/", () => new Response(Bun.file(`${import.meta.dir}/index.html`)))
   .all(
@@ -305,7 +245,9 @@ const server = Bun.serve({
           ghCodeBlocks: true,
         }).makeHtml(data.new_message),
       );
-      const hash = Bun.hash(JSON.stringify({ content, t: new Date() }));
+      const hash = Bun.hash(
+        JSON.stringify({ content, t: new Date() }),
+      ).toString();
 
       const username = await getUsername(sessions[stoken]);
 
@@ -313,28 +255,17 @@ const server = Bun.serve({
         "chat-room",
         html`
           <div id="chat_messages" hx-swap-oob="beforeend">
-            <div id="chat_message_${hash}" class="chat_message">
-              ${prevMessageUsername !== username ? html` <hr /> ` : ""}
-              <b
-                ${prevMessageUsername === username ? "hidden" : ""}
-                class="chat_message_username"
-                >${username}</b
-              >
-              <div class="chat_message_content" hx-disable>${content}</div>
-            </div>
+            ${ChatMessage(
+              content,
+              hash,
+              username,
+              prevMessageUsername === username,
+            )}
           </div>
         `,
       );
-      ws.sendText(
-        html` <input
-            id="session_token"
-            name="session_token"
-            type="hidden"
-            value="${stoken}"
-            hx-swap-oob="true"
-          />
-          ${newMessageTextarea}`,
-      );
+      ws.sendText(SessionToken(stoken));
+      ws.sendText(ChatInput());
 
       prevMessageUsername = username;
     },
