@@ -96,8 +96,7 @@ router
     const username = data.get("username")?.toString();
     if (!username) return invalid;
 
-    // Must be between 3 to 24 characters
-    if (username.length < 1 || username.length > 24) return invalid;
+    if (username.length < 3 || username.length > 24) return invalid;
 
     // Must pass HTML/XSS validation
     if (xss(Bun.escapeHTML(username)) !== username) return invalid;
