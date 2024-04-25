@@ -1,5 +1,15 @@
 * {
   font-family: sans-serif;
+  background: #2b2b2e;
+  color: white;
+}
+
+input {
+  font-size: 1em;
+}
+
+textarea {
+  font-size: 1em;
 }
 
 code {
@@ -19,11 +29,29 @@ body {
 }
 
 p {
-  margin: 2px;
+  margin: 2px 0px;
+}
+
+.chat_message_username {
+  margin: 5px 0px;
+}
+
+.chat_message {
+  display: flex;
+  flex-direction: column;
+}
+
+input:focus {
+  outline: none !important;
+}
+
+textarea:focus {
+  outline: none !important;
 }
 
 hr {
-  border: 1px solid lightgray;
+  border: 1px solid #404043;
+  margin: 15px 0 0 0;
 }
 
 main {

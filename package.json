@@ -12,6 +12,7 @@
   "type": "module",
   "dependencies": {
     "common-tags": "^1.8.2",
+    "itty-router": "^5.0.16",
     "showdown": "^2.1.0",
     "xss": "^1.0.15"
   }

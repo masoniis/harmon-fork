@@ -17,7 +17,7 @@ let
 
       cp -R ./node_modules $out
     '';
-    outputHash = "sha256-AbL6fSX9Vweh0lbthPvMqI4u1A6cV9wc53g+5MWKR6c=";
+    outputHash = "sha256-lYR39rBoKsL6Yl3uC94yzDSI9HlvQf/s4jbF7D/Y2OU=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
@@ -40,7 +40,7 @@ in stdenv.mkDerivation {
     # bun is referenced naked in the package.json generated script
     makeBinaryWrapper ${bun}/bin/bun $out/bin/harmon \
       --prefix PATH : ${lib.makeBinPath [ bun ]} \
-      --add-flags "run --prefer-offline --no-install --cwd $out ./index.ts"
+      --add-flags "run --prefer-offline --no-install --cwd $out ./src/index.ts"
 
     runHook postInstall
   '';
