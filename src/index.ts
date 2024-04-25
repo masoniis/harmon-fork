@@ -1,5 +1,6 @@
 import { cwd } from "node:process";
 import { mkdir } from "node:fs/promises";
+import { appendFile } from "node:fs/promises";
 import { html } from "common-tags";
 import { Converter } from "showdown";
 import xss from "xss";
@@ -126,7 +127,6 @@ router
 
 const chatHistoryFile =
   process.env.CHAT_HISTORY_FILE ?? `${dataDir}/chat_history`;
-const chatHistory = Bun.file(chatHistoryFile).writer();
 
 /*
  * Start server and handle WebSocket connections
@@ -136,13 +136,12 @@ const topic = "chat_room";
 let prevMessageUsername = "";
 let connections: Record<string, number> = {};
 
-function publish(data: string) {
+async function publish(data: string) {
   server.publish(
     topic,
     html`<div id="chat_messages" hx-swap-oob="beforeend">${data}</div>`,
   );
-  chatHistory.write(data);
-  chatHistory.flush();
+  await appendFile(chatHistoryFile, data);
 }
 
 const server = Bun.serve({
@@ -183,7 +182,7 @@ const server = Bun.serve({
         }
         connections[token] = 1;
 
-        publish(ChatStatusMessage("joined", username));
+        await publish(ChatStatusMessage("joined", username));
         return;
       }
 
@@ -195,7 +194,9 @@ const server = Bun.serve({
         }).makeHtml(Bun.escapeHTML(data.new_message)),
       );
 
-      publish(ChatMessage(content, username, prevMessageUsername === username));
+      await publish(
+        ChatMessage(content, username, prevMessageUsername === username),
+      );
       ws.sendText(SessionToken(stoken));
       ws.sendText(ChatInput());
 
@@ -218,7 +219,7 @@ const server = Bun.serve({
       if (!username) return;
 
       prevMessageUsername = "";
-      publish(ChatStatusMessage("left", username));
+      await publish(ChatStatusMessage("left", username));
     },
   },
 });
