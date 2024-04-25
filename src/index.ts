@@ -192,7 +192,7 @@ const server = Bun.serve({
           simpleLineBreaks: true,
           emoji: true,
           ghCodeBlocks: true,
-        }).makeHtml(data.new_message),
+        }).makeHtml(Bun.escapeHTML(data.new_message)),
       );
 
       publish(ChatMessage(content, username, prevMessageUsername === username));
