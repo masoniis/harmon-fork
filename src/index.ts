@@ -21,25 +21,21 @@ import db from "./db";
 import ChatStatusMessage from "./components/ChatStatusMessage";
 
 /*
- * Download htmx and required extensions
+ * Download client-side JS libraries
  */
 
 const dataDir = process.env.DATA_DIR ?? `${cwd()}/data`;
-const htmxDir = `${dataDir}/htmx`;
-await mkdir(htmxDir, { recursive: true });
-
-Bun.write(
-  `${htmxDir}/htmx.min.js`,
-  await (
-    await fetch("https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js")
-  ).text(),
-);
-Bun.write(
-  `${htmxDir}/ws.js`,
-  await (
-    await fetch("https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js")
-  ).text(),
-);
+const jsDir = `${dataDir}/js`;
+await mkdir(jsDir, { recursive: true });
+[
+  "https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js",
+  "https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js",
+].map(async (url) => {
+  Bun.write(
+    `${jsDir}/${url.split("/").at(-1)}`,
+    await (await fetch(url)).text(),
+  );
+});
 
 /*
  * Establish routes
@@ -119,10 +115,7 @@ router
     "/:file",
     ({ file }) => new Response(Bun.file(`${import.meta.dir}/${file}`)),
   )
-  .all(
-    "/htmx/:file",
-    ({ file }) => new Response(Bun.file(`${htmxDir}/${file}`)),
-  );
+  .all("/js/:file", ({ file }) => new Response(Bun.file(`${jsDir}/${file}`)));
 
 /*
  * Start server and handle WebSocket connections

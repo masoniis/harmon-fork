@@ -44,14 +44,16 @@
           chat.scrollHeight - chat.clientHeight <= chat.scrollTop + 1;
       });
       document.body.addEventListener("htmx:wsAfterMessage", () => {
-        const chat = document.getElementById("chat_messages");
         const usernames = document.getElementsByClassName(
           "chat_message_username",
         );
-        const lastUsername = usernames[usernames.length - 1].innerHTML;
-        const myUsername = document.getElementById("username_value").value;
-        if (isScrolledToBottom || lastUsername === myUsername) {
-          chat.scrollTop = chat.scrollHeight - chat.clientHeight;
+        if (usernames.length > 1) {
+          const lastUsername = usernames[usernames.length - 1].innerHTML;
+          const myUsername = document.getElementById("username_value").value;
+          const chat = document.getElementById("chat_messages");
+          if (isScrolledToBottom || lastUsername === myUsername) {
+            chat.scrollTop = chat.scrollHeight - chat.clientHeight;
+          }
         }
       });
 
@@ -67,7 +69,7 @@
       }
     </script>
 
-    <script src="htmx/htmx.min.js"></script>
-    <script src="htmx/ws.js"></script>
+    <script src="js/htmx.min.js"></script>
+    <script src="js/ws.js"></script>
   </body>
 </html>
