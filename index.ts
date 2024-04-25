@@ -251,6 +251,7 @@ const server = Bun.serve({
   },
   websocket: {
     open(ws) {
+      prevMessageUsername = "";
       ws.subscribe("chat-room");
     },
     async message(ws, message) {
