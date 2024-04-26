@@ -121,9 +121,56 @@ div#future_content {
   flex-grow: 1;
 }
 
-div#user_info {
+div#my_user_info {
   display: flex;
   flex-direction: column;
   width: 270px;
   align-items: stretch;
+  margin-top: 15px;
+  margin-bottom: 5px;
+  gap: 2px;
+}
+
+div#users {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 5px;
+  overflow-y: auto;
+}
+
+.user {
+  display: flex;
+  gap: 5px;
+}
+
+.user_username_status {
+  display: flex;
+  flex-direction: column;
+}
+
+.user_presence_icon {
+  display: block;
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  margin: 1px;
+}
+
+.user_presence_online {
+  background: limegreen;
+}
+
+.user_presence_offline {
+  background: darkgray;
+}
+
+.user_presence_away {
+  background: goldenrod;
+}
+
+#my_user_presence_status {
+  display: flex;
+  gap: 5px;
+  align-items: center;
 }

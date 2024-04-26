@@ -19,7 +19,10 @@ import EditUsernameForm from "./components/EditUsernameForm";
 import MainArea from "./components/MainArea";
 import sessions from "./sessions";
 import db from "./db";
-import ChatStatusMessage from "./components/ChatStatusMessage";
+import User from "./components/User";
+import UserPresence, { type Presence } from "./components/UserPresence";
+import UserStatus from "./components/UserStatus";
+import moment from "moment";
 
 const dataDir = process.env.DATA_DIR ?? `${cwd()}/data`;
 const chatHistoryFile =
@@ -41,6 +44,49 @@ await mkdir(jsDir, { recursive: true });
     await (await fetch(url)).text(),
   );
 });
+
+/*
+ * Cache user status
+ */
+
+const userInfo: Record<
+  string,
+  {
+    username: string;
+    presence: Presence;
+    status: string;
+    lastActive: moment.Moment;
+  }
+> = {};
+
+// for (let i = 0; i < 100; i++) {
+//   userInfo[`user${i}`] = {
+//     username: `user${i}`,
+//     presence: "online",
+//     status: "online",
+//     lastActive: moment(),
+//   };
+// }
+
+let users = "";
+function refreshUsers() {
+  users = Object.values(userInfo)
+    .sort((a, b) => a.username.localeCompare(b.username))
+    .map((u) => User(u.username, u.presence, u.status))
+    .join("");
+}
+
+const awayDuration = moment.duration(10, "minutes").asMilliseconds();
+function setAway(token: string) {
+  if (!(token in userInfo)) return;
+  if (moment().diff(userInfo[token].lastActive) > awayDuration) {
+    userInfo[token].presence = "away";
+    userInfo[token].status = "away";
+    server.publish(topic, UserPresence(userInfo[token].username, "away"));
+    server.publish(topic, UserStatus(userInfo[token].username, "away"));
+    refreshUsers();
+  }
+}
 
 /*
  * Establish routes
@@ -66,10 +112,12 @@ router
     const username = await db.read("username", token);
     if (!username) return invalid;
 
-    const file = Bun.file(chatHistoryFile);
-    const messages = (await file.exists()) ? await file.text() : "";
+    const chatHistory = Bun.file(chatHistoryFile);
+    const messages = (await chatHistory.exists())
+      ? await chatHistory.text()
+      : "";
 
-    return new Response(MainArea(stoken, username, messages));
+    return new Response(MainArea(stoken, username, "online", messages, users));
   })
   .post(
     "/register",
@@ -115,6 +163,14 @@ router
     await db.write("username", token, username);
     await db.delete("token", oldUsername);
 
+    if (token in userInfo) {
+      userInfo[token].username = username;
+      userInfo[token].lastActive = moment();
+      setTimeout(() => setAway(token), awayDuration);
+      refreshUsers();
+      server.publish(topic, html` <div id="users">${users}</div> `);
+    }
+
     return new Response(Username(username));
   })
   .get("/", () => new Response(Bun.file(`${import.meta.dir}/index.html`)))
@@ -130,15 +186,6 @@ router
 
 const topic = "chat_room";
 let prevMessageUsername = "";
-let connections: Record<string, number> = {};
-
-async function publish(data: string) {
-  server.publish(
-    topic,
-    html`<div id="chat_messages" hx-swap-oob="beforeend">${data}</div>`,
-  );
-  await appendFile(chatHistoryFile, data);
-}
 
 const server = Bun.serve({
   port: process.env.PORT ?? 3000,
@@ -167,18 +214,31 @@ const server = Bun.serve({
 
       // On first load, subscribe to the chat room and show a status message if necessary
       if (data.first_load) {
-        prevMessageUsername = "";
         ws.subscribe(topic);
         ws.sendText(SessionToken(stoken));
 
-        // Skip the status message if the user already has another open connection
-        if (token in connections) {
-          connections[token]++;
-          return;
-        }
-        connections[token] = 1;
+        // let status = await db.read("status", token);
+        // if (!status) {
+        //   status = "online";
+        //   await db.write("status", token, status);
+        // }
+        const status = "online";
+        const presence: Presence = "online";
 
-        await publish(ChatStatusMessage("joined", username));
+        const updateOnly = token in userInfo;
+
+        if (updateOnly) {
+          server.publish(topic, UserPresence(username, presence));
+          server.publish(topic, UserStatus(username, status));
+        }
+
+        userInfo[token] = { username, presence, status, lastActive: moment() };
+        setTimeout(() => setAway(token), awayDuration);
+        refreshUsers();
+
+        if (!updateOnly) {
+          server.publish(topic, html` <div id="users">${users}</div> `);
+        }
         return;
       }
 
@@ -190,13 +250,30 @@ const server = Bun.serve({
         }).makeHtml(Bun.escapeHTML(data.new_message)),
       );
 
-      await publish(
-        ChatMessage(content, username, prevMessageUsername === username),
+      const chatMessage = ChatMessage(
+        content,
+        username,
+        prevMessageUsername === username,
       );
+      server.publish(
+        topic,
+        html`
+          <div id="chat_messages" hx-swap-oob="beforeend">${chatMessage}</div>
+        `,
+      );
+      server.publish(topic, UserPresence(username, "online"));
+      await appendFile(chatHistoryFile, chatMessage);
       ws.sendText(SessionToken(stoken));
       ws.sendText(ChatInput());
 
+      if (token in userInfo) {
+        userInfo[token].lastActive = moment();
+        setTimeout(() => setAway(token), awayDuration);
+      }
+
       prevMessageUsername = username;
+
+      refreshUsers();
     },
     async close(ws) {
       const stoken = (ws.data as any)?.stoken;
@@ -205,17 +282,19 @@ const server = Bun.serve({
       // Always delete a stoken regardless of whether it is valid
       const token = sessions.getLoginToken(stoken);
       sessions.delete(stoken);
-
-      // Skip the status message if there are still other open connections
-      if (!token || !(token in connections)) return;
-      if (--connections[token] > 0) return;
-      delete connections[token];
+      if (!token) return;
 
       const username = await db.read("username", token);
       if (!username) return;
 
-      prevMessageUsername = "";
-      await publish(ChatStatusMessage("left", username));
+      server.publish(topic, UserPresence(username, "offline"));
+      server.publish(topic, UserStatus(username, "offline"));
+
+      if (token in userInfo) {
+        userInfo[token].presence = "offline";
+        userInfo[token].status = "offline";
+      }
+      refreshUsers();
     },
   },
 });

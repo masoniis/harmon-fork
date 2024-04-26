@@ -1,19 +1,21 @@
 import { cwd } from "node:process";
 import { mkdir, unlink } from "node:fs/promises";
 
-type Table = "token" | "username";
+type Table = "token" | "username" | "status";
 
 // Ensure data directories exist
 
 const dataDir = process.env.DATA_DIR ?? `${cwd()}/data`;
-const dirs = {
+const dirs: Record<string, string> = {
   token: process.env.TOKEN_DIR ?? `${dataDir}/token`,
   username: process.env.USERNAME_DIR ?? `${dataDir}/username`,
+  // status: process.env.STATUS_DIR ?? `${dataDir}/status`,
 };
 
 await mkdir(dataDir, { recursive: true });
-await mkdir(dirs.token, { recursive: true });
-await mkdir(dirs.username, { recursive: true });
+for (const dir of Object.values(dirs)) {
+  await mkdir(dir, { recursive: true });
+}
 
 function loc(table: Table, key: string) {
   return `${dirs[table]}/${key}`;
