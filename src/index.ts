@@ -79,6 +79,7 @@ function refreshUsers() {
 const awayDuration = moment.duration(10, "minutes").asMilliseconds();
 function setAway(token: string) {
   if (!(token in userInfo)) return;
+  if (userInfo[token].presence === "offline") return;
   if (moment().diff(userInfo[token].lastActive) > awayDuration) {
     userInfo[token].presence = "away";
     userInfo[token].status = "away";
