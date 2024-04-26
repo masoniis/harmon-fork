@@ -43,7 +43,8 @@ button:focus {
 }
 
 textarea,
-button {
+button,
+img {
   border-radius: 10px;
 }
 
@@ -61,7 +62,8 @@ button {
   padding: 10px;
 }
 
-button {
+button,
+img {
   background: var(--light-color);
   border: 2px solid var(--dark-color);
 }
@@ -88,6 +90,12 @@ main,
 .user_username_status {
   min-width: 0;
   width: 100%;
+  max-width: 100%;
+}
+
+img {
+  min-width: 0;
+  max-height: 350px;
   max-width: 100%;
 }
 
