@@ -1,10 +1,10 @@
 import { html } from "common-tags";
-import UserPresence from "./UserPresence";
+import UserPresence, { type Presence } from "./UserPresence";
 import UserStatus from "./UserStatus";
 
 export default function User(
   username: string,
-  presence: "online" | "away" | "offline",
+  presence: Presence,
   status: string,
 ) {
   return html`

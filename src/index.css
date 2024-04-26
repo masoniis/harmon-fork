@@ -138,7 +138,8 @@ main,
 #main_area,
 #chat_area,
 #new_message,
-#users {
+#users,
+#chat_messages {
   flex-grow: 1;
 }
 
@@ -174,11 +175,11 @@ p {
   margin-top: 0.375em;
 }
 
-.user_presence_online {
+.user_presence_chatting {
   background: limegreen;
 }
 
-.user_presence_away {
+.user_presence_inactive {
   background: goldenrod;
 }
 
@@ -200,7 +201,7 @@ p {
   margin: 0 5px;
 }
 
-.chat_message_ts > span {
+.chat_message_ts>span {
   color: var(--text-dim-color);
   font-size: small;
 }
@@ -209,7 +210,7 @@ p {
   overflow-wrap: break-word;
 }
 
-.user_username_status > b,
+.user_username_status>b,
 #username {
   overflow-x: auto;
   scrollbar-width: none;

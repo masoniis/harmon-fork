@@ -1,6 +1,6 @@
 import { html } from "common-tags";
 
-export type Presence = "online" | "away" | "offline";
+export type Presence = "chatting" | "inactive" | "offline";
 
 export default function UserPresence(username: string, presence: Presence) {
   return html`

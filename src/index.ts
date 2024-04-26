@@ -71,20 +71,26 @@ const userInfo: Record<
 let users = "";
 function refreshUsers() {
   users = Object.values(userInfo)
-    .sort((a, b) => a.username.localeCompare(b.username))
+    .sort((a, b) => {
+      if (a.presence !== b.presence) {
+        if (a.presence === "offline") return 1;
+        if (b.presence === "offline") return -1;
+      }
+      return a.username.localeCompare(b.username);
+    })
     .map((u) => User(u.username, u.presence, u.status))
     .join("");
 }
 
 const awayDuration = moment.duration(10, "minutes").asMilliseconds();
-function setAway(token: string) {
+function setInactive(token: string) {
   if (!(token in userInfo)) return;
   if (userInfo[token].presence === "offline") return;
   if (moment().diff(userInfo[token].lastActive) > awayDuration) {
-    userInfo[token].presence = "away";
-    userInfo[token].status = "away";
-    server.publish(topic, UserPresence(userInfo[token].username, "away"));
-    server.publish(topic, UserStatus(userInfo[token].username, "away"));
+    userInfo[token].presence = "inactive";
+    userInfo[token].status = "inactive";
+    server.publish(topic, UserPresence(userInfo[token].username, "inactive"));
+    server.publish(topic, UserStatus(userInfo[token].username, "inactive"));
     refreshUsers();
   }
 }
@@ -118,7 +124,9 @@ router
       ? await chatHistory.text()
       : "";
 
-    return new Response(MainArea(stoken, username, "online", messages, users));
+    return new Response(
+      MainArea(stoken, username, "chatting", messages, users),
+    );
   })
   .post(
     "/register",
@@ -167,7 +175,7 @@ router
     if (token in userInfo) {
       userInfo[token].username = username;
       userInfo[token].lastActive = moment();
-      setTimeout(() => setAway(token), awayDuration);
+      setTimeout(() => setInactive(token), awayDuration);
       refreshUsers();
       server.publish(topic, html` <div id="users">${users}</div> `);
     }
@@ -225,10 +233,11 @@ const server = Bun.serve({
         //   status = "online";
         //   await db.write("status", token, status);
         // }
-        const status = "online";
-        const presence: Presence = "online";
+        const status = "chatting";
+        const presence: Presence = "chatting";
 
-        const updateOnly = token in userInfo;
+        const updateOnly =
+          token in userInfo && userInfo[token].status !== "offline";
 
         if (updateOnly) {
           server.publish(topic, UserPresence(username, presence));
@@ -236,7 +245,7 @@ const server = Bun.serve({
         }
 
         userInfo[token] = { username, presence, status, lastActive: moment() };
-        setTimeout(() => setAway(token), awayDuration);
+        setTimeout(() => setInactive(token), awayDuration);
         refreshUsers();
 
         if (!updateOnly) {
@@ -275,14 +284,14 @@ const server = Bun.serve({
           <div id="chat_messages" hx-swap-oob="beforeend">${chatMessage}</div>
         `,
       );
-      server.publish(topic, UserPresence(username, "online"));
+      server.publish(topic, UserPresence(username, "chatting"));
       await appendFile(chatHistoryFile, chatMessage);
       ws.sendText(SessionToken(stoken));
       ws.sendText(ChatInput());
 
       if (token in userInfo) {
         userInfo[token].lastActive = moment();
-        setTimeout(() => setAway(token), awayDuration);
+        setTimeout(() => setInactive(token), awayDuration);
       }
 
       prevMessageUsername = username;
@@ -310,14 +319,12 @@ const server = Bun.serve({
 
       if (token in connections) return;
 
-      server.publish(topic, UserPresence(username, "offline"));
-      server.publish(topic, UserStatus(username, "offline"));
-
       if (token in userInfo) {
         userInfo[token].presence = "offline";
         userInfo[token].status = "offline";
+        refreshUsers();
+        server.publish(topic, html` <div id="users">${users}</div> `);
       }
-      refreshUsers();
     },
   },
 });
