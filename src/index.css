@@ -5,6 +5,7 @@
   --text-dim-color: #808082;
   --text-color: #e6e6e8;
   --accent-color: #5887ff;
+  --mention-bg-color: #3B4C7A;
 }
 
 @media screen and (max-width: 600px) {
@@ -87,7 +88,9 @@ main,
 #chat_messages,
 #users,
 .user,
-.user_username_status {
+.user_username_status,
+.chat_message,
+.chat_message_content {
   min-width: 0;
   width: 100%;
   max-width: 100%;
@@ -139,7 +142,8 @@ main,
 #chat_area,
 #new_message,
 #users,
-#chat_messages {
+#chat_messages,
+#chat_controls {
   flex-grow: 1;
 }
 
@@ -147,9 +151,12 @@ main {
   justify-content: center;
 }
 
-#nav_area,
-#chat_area {
+#nav_area {
   padding: 7px;
+}
+
+#chat_area {
+  padding: 7px 12px;
 }
 
 hr {
@@ -195,10 +202,6 @@ p {
 
 .chat_message:last-of-type {
   margin-bottom: 17px;
-}
-
-#chat_messages {
-  margin: 0 5px;
 }
 
 .chat_message_ts>span {
