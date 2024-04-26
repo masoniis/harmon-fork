@@ -186,6 +186,7 @@ router
 
 const topic = "chat_room";
 let prevMessageUsername = "";
+let prevMessageTime = moment();
 const connections: Record<string, number> = {};
 
 const server = Bun.serve({
@@ -261,8 +262,12 @@ const server = Bun.serve({
       const chatMessage = ChatMessage(
         content,
         username,
-        prevMessageUsername === username,
+        prevMessageUsername === username &&
+          moment().diff(prevMessageTime) <=
+            moment.duration(1, "minute").asMilliseconds() &&
+          prevMessageTime.minutes() === moment().minutes(),
       );
+      prevMessageTime = moment();
       server.publish(
         topic,
         html`
