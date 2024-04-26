@@ -44,6 +44,13 @@
         document.getElementById("ws_status").innerHTML = "No connection!";
       });
 
+      document.body.addEventListener("htmx:load", () => {
+        const chat = document.getElementById("chat_messages");
+        if (chat) {
+          chat.scrollTop = chat.scrollHeight - chat.clientHeight;
+        }
+      });
+
       let isScrolledToBottom = true;
       document.body.addEventListener("htmx:wsBeforeMessage", () => {
         const chat = document.getElementById("chat_messages");
@@ -92,7 +99,7 @@
       const tsFormatOther = "D MMM [at] h:mm a";
       function displayTime(ts) {
         const m = moment(ts);
-        const isCurrentYear = m.years() === moment().years();
+        const isCurrentYear = m.year() === moment().year();
         const format = isCurrentYear ? tsFormatOther : tsFormatOtherYear;
         return m.calendar({
           sameDay: "h:mm a",
