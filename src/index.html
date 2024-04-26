@@ -88,8 +88,18 @@
         if (!callback) return new Promise((r) => (callback = r));
       }
 
+      const tsFormatOtherYear = "D MMM Y [at] h:mm a";
+      const tsFormatOther = "D MMM [at] h:mm a";
       function displayTime(ts) {
-        return moment(ts).format("h:mm a");
+        const m = moment(ts);
+        const isCurrentYear = m.years() === moment().years();
+        const format = isCurrentYear ? tsFormatOther : tsFormatOtherYear;
+        return m.calendar({
+          sameDay: "h:mm a",
+          lastDay: "ddd [at] h:mm a",
+          lastWeek: format,
+          sameElse: format,
+        });
       }
     </script>
 
