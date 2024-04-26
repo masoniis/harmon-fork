@@ -186,6 +186,7 @@ router
 
 const topic = "chat_room";
 let prevMessageUsername = "";
+const connections: Record<string, number> = {};
 
 const server = Bun.serve({
   port: process.env.PORT ?? 3000,
@@ -239,6 +240,13 @@ const server = Bun.serve({
         if (!updateOnly) {
           server.publish(topic, html` <div id="users">${users}</div> `);
         }
+
+        if (token in connections) {
+          connections[token]++;
+        } else {
+          connections[token] = 1;
+        }
+
         return;
       }
 
@@ -286,6 +294,15 @@ const server = Bun.serve({
 
       const username = await db.read("username", token);
       if (!username) return;
+
+      if (token in connections) {
+        connections[token]--;
+        if (connections[token] === 0) {
+          delete connections[token];
+        }
+      }
+
+      if (token in connections) return;
 
       server.publish(topic, UserPresence(username, "offline"));
       server.publish(topic, UserStatus(username, "offline"));
