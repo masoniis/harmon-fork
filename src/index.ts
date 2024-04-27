@@ -19,6 +19,7 @@ import {
   ChatInput,
   ChatMessage,
   MainArea,
+  MyUserInfo,
   User,
   UserPresence,
   UserStatus,
@@ -57,6 +58,7 @@ interface UserStats {
   presence: Presence;
   status: string;
   lastActive: moment.Moment;
+  banner?: string;
 }
 const stats: Record<string, UserStats> = {};
 
@@ -79,7 +81,7 @@ function refreshUsers() {
       }
       return a.username.localeCompare(b.username);
     })
-    .map((u) => User(u.username, u.presence, u.status))
+    .map((u) => User(u.username, u.presence, u.status, u.banner))
     .join("");
 }
 
@@ -119,6 +121,7 @@ router
     if (!stoken) return invalid;
     const username = await db.read("username", token);
     if (!username) return invalid;
+    const banner = await db.read("banner", token);
 
     const chatHistory = Bun.file(chatHistoryFile);
     const messages = (await chatHistory.exists())
@@ -126,7 +129,7 @@ router
       : "";
 
     return new Response(
-      MainArea(stoken, username, "chatting", messages, users),
+      MainArea(stoken, username, "chatting", messages, users, banner),
     );
   })
   .post(
@@ -161,6 +164,7 @@ interface ServerData {
   stoken?: string;
   token?: string;
   username?: string;
+  banner?: string;
 }
 let connections: ServerWebSocket<ServerData>[] = [];
 
@@ -204,6 +208,7 @@ const server = Bun.serve<ServerData>({
       );
       ws.data.username ??= await db.read("username", ws.data.token);
       if (!ws.data.username) return;
+      ws.data.banner ??= await db.read("banner", ws.data.token);
 
       if (msg.first_load) {
         info(ws, "first_load");
@@ -218,6 +223,7 @@ const server = Bun.serve<ServerData>({
           status: "chatting",
           presence: "chatting",
           lastActive: moment(),
+          banner: ws.data.banner,
         };
         setTimeout(() => setInactive(ws.data.token!), awayDuration);
         refreshUsers();
@@ -273,7 +279,7 @@ const server = Bun.serve<ServerData>({
         return;
       }
 
-      if (msg.new_username) {
+      if (msg.new_username && msg.new_username.length > 0) {
         info(ws, `new_username\t${msg.new_username}`);
         const u = msg.new_username;
         if (u === ws.data.username) {
@@ -312,6 +318,43 @@ const server = Bun.serve<ServerData>({
           }
           return;
         }
+      }
+
+      if (msg.new_banner && msg.new_banner.length > 0) {
+        info(ws, `new_banner\t${msg.new_banner}`);
+        const b = msg.new_banner;
+        if (b === ws.data.banner) {
+          ws.sendText(
+            JSON.stringify({
+              new_banner_success: b,
+            }),
+          );
+          return;
+        }
+        if (xss(Bun.escapeHTML(b)) === b) {
+          await db.write("banner", ws.data.token, b);
+          if (stats[ws.data.token]) {
+            stats[ws.data.token].banner = b;
+            stats[ws.data.token].lastActive = moment();
+            setTimeout(() => setInactive(ws.data.token!), awayDuration);
+            refreshUsers();
+            server.publish(topic, html` <div id="users">${users}</div> `);
+          }
+          for (const conn of connections) {
+            if (conn.data.token === ws.data.token) {
+              conn.data.banner = b;
+              conn.sendText(
+                JSON.stringify({
+                  new_banner_success: b,
+                }),
+              );
+              conn.sendText(
+                MyUserInfo(ws.data.username, stats[ws.data.token].presence, b),
+              );
+            }
+          }
+        }
+        return;
       }
     },
     async close(ws) {

@@ -1,7 +1,7 @@
 import { cwd } from "node:process";
 import { mkdir, unlink } from "node:fs/promises";
 
-type Table = "token" | "username" | "status";
+type Table = "token" | "username" | "status" | "banner";
 
 // Ensure data directories exist
 
@@ -10,6 +10,7 @@ const dirs: Record<string, string> = {
   token: process.env.TOKEN_DIR ?? `${dataDir}/token`,
   username: process.env.USERNAME_DIR ?? `${dataDir}/username`,
   // status: process.env.STATUS_DIR ?? `${dataDir}/status`,
+  banner: process.env.BANNER_DIR ?? `${dataDir}/banner`,
 };
 
 await mkdir(dataDir, { recursive: true });

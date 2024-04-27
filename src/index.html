@@ -43,6 +43,7 @@
       };
 
       let stoken, username;
+      let editingUsername = false;
 
       document.body.addEventListener("htmx:load", () => {
         const chat = document.getElementById("chat_messages");
@@ -92,6 +93,10 @@
             document.getElementById("username").innerHTML =
               msg.new_username_success;
             document.getElementById("username").hidden = false;
+            editingUsername = false;
+          }
+          if (msg.new_banner_success) {
+            closeDialog("new_banner_dialog");
           }
           return;
         }
@@ -109,9 +114,17 @@
         }
       });
 
-      function editUsername() {
+      function editUsername(event) {
+        editingUsername = true;
         document.getElementById("username").hidden = true;
         document.getElementById("new_username").hidden = false;
+        document.getElementById("new_username").focus();
+        document.getElementById("new_username").select();
+      }
+
+      function editBanner(event) {
+        if (editingUsername) return;
+        showDialog("new_banner_dialog");
       }
 
       function newUsername(event) {
@@ -123,6 +136,25 @@
             }),
           );
         }
+      }
+
+      function newBanner(event) {
+        if (event.keyCode === 13) {
+          socket.send(
+            JSON.stringify({
+              new_banner: document.getElementById("new_banner").value,
+              stoken,
+            }),
+          );
+        }
+      }
+
+      function showDialog(id) {
+        document.getElementById(id).showModal();
+      }
+
+      function closeDialog(id) {
+        document.getElementById(id).close();
       }
 
       function handleNewMessageEnter(e) {
@@ -160,6 +192,10 @@
           lastWeek: format,
           sameElse: format,
         });
+      }
+
+      function showUsernameEditTip(show) {
+        document.getElementById("username_edit_tip").hidden = !show;
       }
     </script>
   </body>

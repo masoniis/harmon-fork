@@ -7,26 +7,14 @@ export function MainArea(
   presence: Presence,
   messages: string,
   users: string,
+  banner?: string,
 ) {
   return html`
     <div id="main_area">
       <div id="nav_area">
         <div id="users">${users}</div>
         <hr />
-        <div id="my_user_info">
-          <b id="username" onclick="editUsername()">${username}</b>
-          <input
-            id="new_username"
-            type="text"
-            hidden
-            value="${username}"
-            onkeydown="newUsername(event)"
-          />
-          <span id="my_user_presence_status">
-            ${UserPresence(username, presence)}
-            <p id="ws_status">Connecting...</p>
-          </span>
-        </div>
+        ${MyUserInfo(username, presence, banner)}
       </div>
       <div id="chat_area" hx-ext="ws" ws-connect="/chat">
         <div id="notifications"></div>
@@ -42,6 +30,41 @@ export function MainArea(
           <button type="submit">Send</button>
         </form>
       </div>
+    </div>
+    ${ChangeBannerDialog()}
+  `;
+}
+
+export function MyUserInfo(
+  username: string,
+  presence: Presence,
+  banner?: string,
+) {
+  return html`
+    <div id="my_user_info" onclick="editBanner(event)">
+      <span id="username_wrapper">
+        <b
+          id="username"
+          onclick="editUsername(event)"
+          onmouseenter="showUsernameEditTip(true)"
+          onmouseleave="showUsernameEditTip(false)"
+        >
+          ${username}
+        </b>
+        <small id="username_edit_tip" hidden>edit</small>
+      </span>
+      <input
+        id="new_username"
+        type="text"
+        hidden
+        value="${username}"
+        onkeydown="newUsername(event)"
+      />
+      <span id="my_user_presence_status">
+        ${UserPresence(username, presence)}
+        <p id="ws_status">Connecting...</p>
+      </span>
+      ${banner ? UserBannerStyle("my_user_info", banner) : ""}
     </div>
   `;
 }
@@ -126,28 +149,68 @@ export function SessionToken(stoken: string) {
 export type Presence = "chatting" | "inactive" | "offline";
 
 export function UserPresence(username: string, presence: Presence) {
+  const hash = Bun.hash(username).toString();
   return html`
     <span
-      id="user_presence_${username}"
+      id="user_presence_${hash}"
       class="user_presence_icon user_presence_${presence}"
     ></span>
   `;
 }
 
 export function UserStatus(username: string, status: string) {
+  const hash = Bun.hash(username).toString();
   return html`
-    <span id="user_status_${username}" class="user_status">${status}</span>
+    <span id="user_status_${hash}" class="user_status">${status}</span>
   `;
 }
 
-export function User(username: string, presence: Presence, status: string) {
+export function User(
+  username: string,
+  presence: Presence,
+  status: string,
+  banner?: string,
+) {
+  const hash = Bun.hash(username).toString();
   return html`
-    <div id="user_${username}" class="user">
+    <div id="user_${hash}" class="user" style="">
       ${UserPresence(username, presence)}
       <span class="user_username_status">
         <b>${username}</b>
         ${UserStatus(username, status)}
       </span>
+      ${banner ? UserBannerStyle("user_" + hash, banner) : ""}
     </div>
+  `;
+}
+
+export function UserBannerStyle(id: string, banner: string) {
+  return html`
+    <style>
+      #${id} {
+        background: linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.45)),
+          url("${banner}");
+        background-position: center;
+        background-size: cover;
+      }
+    </style>
+  `;
+}
+
+export function ChangeBannerDialog() {
+  return html`
+    <dialog id="new_banner_dialog">
+      <div id="new_banner_dialog_contents">
+        <button onclick="closeDialog('new_banner_dialog')">close</button>
+        <label for="new_banner">URL of new banner image</label>
+        <input
+          id="new_banner"
+          name="new_banner"
+          type="text"
+          autofocus
+          onkeydown="newBanner(event)"
+        />
+      </div>
+    </dialog>
   `;
 }

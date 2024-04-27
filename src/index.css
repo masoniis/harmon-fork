@@ -6,6 +6,7 @@
   --text-color: #e6e6e8;
   --accent-color: #666699;
   --mention-bg-color: #423040;
+  --shadow-color: #161617;
 }
 
 @media screen and (max-width: 600px) {
@@ -45,12 +46,18 @@ button:focus {
 
 textarea,
 button,
-img {
+img,
+dialog {
   border-radius: 10px;
 }
 
+dialog {
+  box-shadow: 5px 5px 5px var(--shadow-color);
+}
+
 input,
-textarea {
+textarea,
+dialog {
   background: var(--dark-color);
   border: 2px solid var(--light-color);
 }
@@ -116,12 +123,14 @@ main,
 #chat_messages,
 .chat_status_message,
 .chat_message,
-#chat_controls {
+#chat_controls,
+#new_banner_dialog_contents {
   display: flex;
 }
 
 main,
-#login {
+#login,
+#new_banner_dialog_contents {
   flex-direction: column;
   align-items: center;
 }
@@ -151,7 +160,7 @@ main {
 }
 
 #nav_area {
-  padding: 7px;
+  padding-right: 7px;
 }
 
 #chat_area {
@@ -203,7 +212,7 @@ p {
   margin-bottom: 17px;
 }
 
-.chat_message_ts>span {
+.chat_message_ts > span {
   color: var(--text-dim-color);
   font-size: small;
 }
@@ -212,8 +221,37 @@ p {
   overflow-wrap: break-word;
 }
 
-.user_username_status>b,
+.user_username_status > b,
 #username {
   overflow-x: auto;
   scrollbar-width: none;
+}
+
+#username {
+  max-width: min-content;
+}
+
+#username:hover,
+#my_user_info:hover,
+button:hover {
+  cursor: pointer;
+}
+
+.user,
+#my_user_info {
+  height: 50px;
+  max-height: 50px;
+  overflow: hidden;
+  padding-left: 5px;
+  box-sizing: border-box;
+}
+
+.user_username_status > * {
+  color: white;
+}
+
+#username_edit_tip {
+  color: var(--text-color);
+  font-weight: normal;
+  padding-left: 1px;
 }
