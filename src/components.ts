@@ -48,9 +48,8 @@ export function MyUserInfo(
           onclick="editUsername(event)"
           onmouseenter="showUsernameEditTip(true)"
           onmouseleave="showUsernameEditTip(false)"
+          >${username}</b
         >
-          ${username}
-        </b>
         <small id="username_edit_tip" hidden>edit</small>
       </span>
       <input
