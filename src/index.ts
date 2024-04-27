@@ -259,8 +259,7 @@ const server = Bun.serve<ServerData>({
 					ws.data.username,
 					prevMessageUsername === ws.data.username &&
 						moment().diff(prevMessageTime) <=
-							moment.duration(1, "minute").asMilliseconds() &&
-						prevMessageTime.minutes() === moment().minutes(),
+							moment.duration(2, "minute").asMilliseconds(),
 				);
 				server.publish(
 					topic,
