@@ -250,7 +250,7 @@ button:hover {
 	color: white;
 }
 
-#username_edit_tip {
+.edit_tip {
 	color: var(--text-color);
 	font-weight: normal;
 	padding-left: 1px;

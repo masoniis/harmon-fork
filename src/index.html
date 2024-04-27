@@ -43,7 +43,7 @@
 			};
 
 			let stoken, username;
-			let editingUsername = false;
+			let editingUser = false;
 
 			document.body.addEventListener("htmx:load", () => {
 				const chat = document.getElementById("chat_messages");
@@ -53,7 +53,6 @@
 			});
 
 			document.body.addEventListener("htmx:wsOpen", (e) => {
-				document.getElementById("ws_status").innerHTML = "Connected";
 				const session_token = document.getElementById("session_token");
 				socket.send(
 					JSON.stringify({
@@ -69,7 +68,7 @@
 			});
 
 			document.body.addEventListener("htmx:wsClose", () => {
-				document.getElementById("ws_status").innerHTML = "No connection!";
+				document.getElementById("status").innerHTML = "connection problem";
 			});
 
 			let isScrolledToBottom = true;
@@ -93,7 +92,14 @@
 						document.getElementById("username").innerHTML =
 							msg.new_username_success;
 						document.getElementById("username").hidden = false;
-						editingUsername = false;
+						editingUser = false;
+					}
+					if (msg.new_status_success) {
+						document.getElementById("new_status").hidden = true;
+						document.getElementById("status").innerHTML =
+							msg.new_status_success;
+						document.getElementById("status").hidden = false;
+						editingUser = false;
 					}
 					if (msg.new_banner_success) {
 						closeDialog("new_banner_dialog");
@@ -114,16 +120,16 @@
 				}
 			});
 
-			function editUsername(event) {
-				editingUsername = true;
-				document.getElementById("username").hidden = true;
-				document.getElementById("new_username").hidden = false;
-				document.getElementById("new_username").focus();
-				document.getElementById("new_username").select();
+			function editUser(attr, event) {
+				editingUser = true;
+				document.getElementById(attr).hidden = true;
+				document.getElementById(`new_${attr}`).hidden = false;
+				document.getElementById(`new_${attr}`).focus();
+				document.getElementById(`new_${attr}`).select();
 			}
 
 			function editBanner(event) {
-				if (editingUsername) return;
+				if (editingUser) return;
 				showDialog("new_banner_dialog");
 			}
 
@@ -132,6 +138,17 @@
 					socket.send(
 						JSON.stringify({
 							new_username: document.getElementById("new_username").value,
+							stoken,
+						}),
+					);
+				}
+			}
+
+			function newStatus(event) {
+				if (event.keyCode === 13) {
+					socket.send(
+						JSON.stringify({
+							new_status: document.getElementById("new_status").value,
 							stoken,
 						}),
 					);
@@ -194,8 +211,8 @@
 				});
 			}
 
-			function showUsernameEditTip(show) {
-				document.getElementById("username_edit_tip").hidden = !show;
+			function showEditTip(attr, show) {
+				document.getElementById(`${attr}_edit_tip`).hidden = !show;
 			}
 		</script>
 	</body>

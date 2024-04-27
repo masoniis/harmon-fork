@@ -9,7 +9,7 @@ const dataDir = process.env.DATA_DIR ?? `${cwd()}/data`;
 const dirs: Record<string, string> = {
 	token: process.env.TOKEN_DIR ?? `${dataDir}/token`,
 	username: process.env.USERNAME_DIR ?? `${dataDir}/username`,
-	// status: process.env.STATUS_DIR ?? `${dataDir}/status`,
+	status: process.env.STATUS_DIR ?? `${dataDir}/status`,
 	banner: process.env.BANNER_DIR ?? `${dataDir}/banner`,
 };
 

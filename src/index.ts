@@ -90,7 +90,6 @@ function setInactive(token: string) {
 	if (stats[token] || stats[token].presence === "offline") return;
 	if (moment().diff(stats[token].lastActive) > awayDuration) {
 		stats[token].presence = "inactive";
-		stats[token].status = "inactive";
 		server.publish(topic, UserPresence(stats[token].username, "inactive"));
 		server.publish(topic, UserStatus(stats[token].username, "inactive"));
 		refreshUsers();
@@ -128,7 +127,15 @@ router
 			: "";
 
 		return new Response(
-			MainArea(stoken, username, "chatting", messages, users, banner),
+			MainArea(
+				stoken,
+				username,
+				"offline",
+				"connecting...",
+				messages,
+				users,
+				banner,
+			),
 		);
 	})
 	.post(
@@ -164,6 +171,7 @@ interface ServerData {
 	token?: string;
 	username?: string;
 	banner?: string;
+	status?: string;
 }
 let connections: ServerWebSocket<ServerData>[] = [];
 
@@ -208,6 +216,11 @@ const server = Bun.serve<ServerData>({
 			ws.data.username ??= await db.read("username", ws.data.token);
 			if (!ws.data.username) return;
 			ws.data.banner ??= await db.read("banner", ws.data.token);
+			ws.data.status ??= await db.read("status", ws.data.token);
+			if (!ws.data.status) {
+				ws.data.status = "chatting";
+				await db.write("status", ws.data.token, ws.data.status);
+			}
 
 			if (msg.first_load) {
 				info(ws, "first_load");
@@ -219,18 +232,18 @@ const server = Bun.serve<ServerData>({
 					stats[ws.data.token] && stats[ws.data.token].presence !== "offline";
 				stats[ws.data.token] = {
 					username: ws.data.username,
-					status: "chatting",
+					status: ws.data.status,
 					presence: "chatting",
 					lastActive: moment(),
 					banner: ws.data.banner,
 				};
 				setTimeout(() => setInactive(ws.data.token!), awayDuration);
 				refreshUsers();
+				server.publish(
+					topic,
+					UserPresence(ws.data.username, stats[ws.data.token].presence),
+				);
 				if (updateOnly) {
-					server.publish(
-						topic,
-						UserPresence(ws.data.username, stats[ws.data.token].presence),
-					);
 					server.publish(
 						topic,
 						UserStatus(ws.data.username, stats[ws.data.token].status),
@@ -238,6 +251,11 @@ const server = Bun.serve<ServerData>({
 					return;
 				}
 				server.publish(topic, html` <div id="users">${users}</div> `);
+				ws.sendText(
+					JSON.stringify({
+						new_status_success: ws.data.status,
+					}),
+				);
 				return;
 			}
 
@@ -273,7 +291,6 @@ const server = Bun.serve<ServerData>({
 				await appendFile(chatHistoryFile, chatMessage);
 				if (stats[ws.data.token]) {
 					stats[ws.data.token].presence = "chatting";
-					stats[ws.data.token].status = "chatting";
 					stats[ws.data.token].lastActive = moment();
 					setTimeout(() => setInactive(ws.data.token!), awayDuration);
 				}
@@ -282,7 +299,11 @@ const server = Bun.serve<ServerData>({
 				return;
 			}
 
-			if (msg.new_username && msg.new_username.length > 0) {
+			if (
+				msg.new_username &&
+				msg.new_username.length > 0 &&
+				msg.new_username.trim().length > 0
+			) {
 				info(ws, `new_username\t${msg.new_username}`);
 				const u = msg.new_username;
 				if (u === ws.data.username) {
@@ -297,6 +318,7 @@ const server = Bun.serve<ServerData>({
 					u.length >= 3 &&
 					u.length <= 24 &&
 					xss(Bun.escapeHTML(u)) === u &&
+					u.trim() === u &&
 					!(await db.read("token", u))
 				) {
 					await db.write("token", u, ws.data.token);
@@ -305,7 +327,6 @@ const server = Bun.serve<ServerData>({
 					if (stats[ws.data.token]) {
 						stats[ws.data.token].username = u;
 						stats[ws.data.token].presence = "chatting";
-						stats[ws.data.token].status = "chatting";
 						stats[ws.data.token].lastActive = moment();
 						setTimeout(() => setInactive(ws.data.token!), awayDuration);
 						refreshUsers();
@@ -317,6 +338,44 @@ const server = Bun.serve<ServerData>({
 							conn.sendText(
 								JSON.stringify({
 									new_username_success: u,
+								}),
+							);
+						}
+					}
+					return;
+				}
+			}
+
+			if (
+				msg.new_status &&
+				msg.new_status.length > 0 &&
+				msg.new_status.trim().length > 0
+			) {
+				info(ws, `new_status\t${msg.new_status}`);
+				const s = msg.new_status;
+				if (s === ws.data.status) {
+					ws.sendText(
+						JSON.stringify({
+							new_status_success: s,
+						}),
+					);
+				}
+				if (s.length >= 1 && s.length <= 32 && xss(Bun.escapeHTML(s)) === s) {
+					await db.write("status", ws.data.token, s);
+					if (stats[ws.data.token]) {
+						stats[ws.data.token].presence = "chatting";
+						stats[ws.data.token].status = s;
+						stats[ws.data.token].lastActive = moment();
+						setTimeout(() => setInactive(ws.data.token!), awayDuration);
+						refreshUsers();
+						server.publish(topic, html` <div id="users">${users}</div> `);
+					}
+					for (const conn of connections) {
+						if (conn.data.token === ws.data.token) {
+							conn.data.status = s;
+							conn.sendText(
+								JSON.stringify({
+									new_status_success: s,
 								}),
 							);
 						}
@@ -341,7 +400,6 @@ const server = Bun.serve<ServerData>({
 					if (stats[ws.data.token]) {
 						stats[ws.data.token].banner = b;
 						stats[ws.data.token].presence = "chatting";
-						stats[ws.data.token].status = "chatting";
 						stats[ws.data.token].lastActive = moment();
 						setTimeout(() => setInactive(ws.data.token!), awayDuration);
 						refreshUsers();
@@ -356,7 +414,12 @@ const server = Bun.serve<ServerData>({
 								}),
 							);
 							conn.sendText(
-								MyUserInfo(ws.data.username, stats[ws.data.token].presence, b),
+								MyUserInfo(
+									ws.data.username,
+									stats[ws.data.token].presence,
+									stats[ws.data.token].status,
+									b,
+								),
 							);
 						}
 					}

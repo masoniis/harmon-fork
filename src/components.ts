@@ -5,6 +5,7 @@ export function MainArea(
 	stoken: string,
 	username: string,
 	presence: Presence,
+	status: string,
 	messages: string,
 	users: string,
 	banner?: string,
@@ -14,7 +15,7 @@ export function MainArea(
 			<div id="nav_area">
 				<div id="users">${users}</div>
 				<hr />
-				${MyUserInfo(username, presence, banner)}
+				${MyUserInfo(username, presence, status, banner)}
 			</div>
 			<div id="chat_area" hx-ext="ws" ws-connect="/chat">
 				<div id="notifications"></div>
@@ -38,6 +39,7 @@ export function MainArea(
 export function MyUserInfo(
 	username: string,
 	presence: Presence,
+	status: string,
 	banner?: string,
 ) {
 	return html`
@@ -45,12 +47,12 @@ export function MyUserInfo(
 			<span id="username_wrapper">
 				<b
 					id="username"
-					onclick="editUsername(event)"
-					onmouseenter="showUsernameEditTip(true)"
-					onmouseleave="showUsernameEditTip(false)"
+					onclick="editUser('username', event)"
+					onmouseenter="showEditTip('username', true)"
+					onmouseleave="showEditTip('username', false)"
 					>${username}</b
 				>
-				<small id="username_edit_tip" hidden>edit</small>
+				<small id="username_edit_tip" class="edit_tip" hidden>edit</small>
 			</span>
 			<input
 				id="new_username"
@@ -61,7 +63,22 @@ export function MyUserInfo(
 			/>
 			<span id="my_user_presence_status">
 				${UserPresence(username, presence)}
-				<p id="ws_status">Connecting...</p>
+				<p
+					id="status"
+					onclick="editUser('status', event)"
+					onmouseenter="showEditTip('status', true)"
+					onmouseleave="showEditTip('status', false)"
+				>
+					${status}
+				</p>
+				<small id="status_edit_tip" class="edit_tip" hidden>edit</small>
+				<input
+					id="new_status"
+					type="text"
+					hidden
+					value="${status}"
+					onkeydown="newStatus(event)"
+				/>
 			</span>
 			${banner ? UserBannerStyle("my_user_info", banner) : ""}
 		</div>
