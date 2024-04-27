@@ -242,7 +242,11 @@ const server = Bun.serve<ServerData>({
         return;
       }
 
-      if (msg.new_message && msg.new_message.length > 0) {
+      if (
+        msg.new_message &&
+        msg.new_message.length > 0 &&
+        msg.new_message.trim().length > 0
+      ) {
         info(ws, `new_message\t${msg.new_message}`);
         const content = xss(
           new Converter({
