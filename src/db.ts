@@ -30,7 +30,7 @@ export default {
     try {
       return await Bun.file(loc(table, key)).text();
     } catch (e) {
-      return false;
+      return undefined;
     }
   },
 

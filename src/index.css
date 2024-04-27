@@ -4,7 +4,7 @@
   --light-color: #343436;
   --text-dim-color: #808082;
   --text-color: #e6e6e8;
-  --accent-color: #5887ff;
+  --accent-color: #666699;
   --mention-bg-color: #593451;
 }
 
@@ -142,8 +142,7 @@ main,
 #chat_area,
 #new_message,
 #users,
-#chat_messages,
-#chat_controls {
+#chat_messages {
   flex-grow: 1;
 }
 

@@ -11,18 +11,19 @@ import {
   withParams,
   html as ittyHtml,
 } from "itty-router";
-import Username from "./components/Username";
-import ChatInput from "./components/ChatInput";
-import ChatMessage from "./components/ChatMessage";
-import SessionToken from "./components/SessionToken";
-import EditUsernameForm from "./components/EditUsernameForm";
-import MainArea from "./components/MainArea";
 import sessions from "./sessions";
 import db from "./db";
-import User from "./components/User";
-import UserPresence, { type Presence } from "./components/UserPresence";
-import UserStatus from "./components/UserStatus";
 import moment from "moment";
+import type { ServerWebSocket } from "bun";
+import {
+  ChatInput,
+  ChatMessage,
+  MainArea,
+  User,
+  UserPresence,
+  UserStatus,
+  type Presence,
+} from "./components";
 
 const dataDir = process.env.DATA_DIR ?? `${cwd()}/data`;
 const chatHistoryFile =
@@ -34,43 +35,43 @@ const chatHistoryFile =
 
 const jsDir = `${dataDir}/js`;
 await mkdir(jsDir, { recursive: true });
-[
+const jsUrls = [
   "https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js",
   "https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js",
   "https://unpkg.com/moment@2.30.1/moment.js",
-].map(async (url) => {
+];
+jsUrls.map(async (url) => {
   Bun.write(
     `${jsDir}/${url.split("/").at(-1)}`,
     await (await fetch(url)).text(),
   );
 });
+const jsPaths = jsUrls.map((url) => url.split("/").at(-1));
 
 /*
  * Cache user status
  */
 
-const userInfo: Record<
-  string,
-  {
-    username: string;
-    presence: Presence;
-    status: string;
-    lastActive: moment.Moment;
-  }
-> = {};
+interface UserStats {
+  username: string;
+  presence: Presence;
+  status: string;
+  lastActive: moment.Moment;
+}
+const stats: Record<string, UserStats> = {};
 
 // for (let i = 0; i < 100; i++) {
-//   userInfo[`user${i}`] = {
+//   stats[`user${i}`] = {
 //     username: `user${i}`,
-//     presence: "online",
-//     status: "online",
+//     presence: "chatting",
+//     status: "chatting",
 //     lastActive: moment(),
 //   };
 // }
 
 let users = "";
 function refreshUsers() {
-  users = Object.values(userInfo)
+  users = Object.values(stats)
     .sort((a, b) => {
       if (a.presence !== b.presence) {
         if (a.presence === "offline") return 1;
@@ -84,13 +85,13 @@ function refreshUsers() {
 
 const awayDuration = moment.duration(10, "minutes").asMilliseconds();
 function setInactive(token: string) {
-  if (!(token in userInfo)) return;
-  if (userInfo[token].presence === "offline") return;
-  if (moment().diff(userInfo[token].lastActive) > awayDuration) {
-    userInfo[token].presence = "inactive";
-    userInfo[token].status = "inactive";
-    server.publish(topic, UserPresence(userInfo[token].username, "inactive"));
-    server.publish(topic, UserStatus(userInfo[token].username, "inactive"));
+  if (!(token in stats)) return;
+  if (stats[token].presence === "offline") return;
+  if (moment().diff(stats[token].lastActive) > awayDuration) {
+    stats[token].presence = "inactive";
+    stats[token].status = "inactive";
+    server.publish(topic, UserPresence(stats[token].username, "inactive"));
+    server.publish(topic, UserStatus(stats[token].username, "inactive"));
     refreshUsers();
   }
 }
@@ -137,57 +138,16 @@ router
         >`,
       ),
   )
-  .post(
-    "/edit_username",
-    async (req) =>
-      new Response(
-        EditUsernameForm(
-          (await req.formData())?.get("username")?.toString() ?? "",
-        ),
-      ),
-  )
-  .post("/set_username", async (req) => {
-    const invalid = new Response("Invalid username!", { status: 400 });
-
-    const data = await req.formData();
-    const stoken = data.get("session_token")?.toString();
-    if (!stoken) return invalid;
-    const token = sessions.getLoginToken(stoken);
-    if (!token) return invalid;
-    const username = data.get("username")?.toString();
-    if (!username) return invalid;
-
-    if (username.length < 3 || username.length > 24) return invalid;
-
-    // Must pass HTML/XSS validation
-    if (xss(Bun.escapeHTML(username)) !== username) return invalid;
-
-    const oldUsername = await db.read("username", token);
-    if (!oldUsername) return invalid;
-
-    // Ensure new username is not in database
-    if (await db.read("token", username)) return invalid;
-
-    await db.write("token", username, token);
-    await db.write("username", token, username);
-    await db.delete("token", oldUsername);
-
-    if (token in userInfo) {
-      userInfo[token].username = username;
-      userInfo[token].lastActive = moment();
-      setTimeout(() => setInactive(token), awayDuration);
-      refreshUsers();
-      server.publish(topic, html` <div id="users">${users}</div> `);
-    }
-
-    return new Response(Username(username));
-  })
   .get("/", () => new Response(Bun.file(`${import.meta.dir}/index.html`)))
-  .all(
-    "/:file",
-    ({ file }) => new Response(Bun.file(`${import.meta.dir}/${file}`)),
+  .get(
+    "/index.css",
+    () => new Response(Bun.file(`${import.meta.dir}/index.css`)),
   )
-  .all("/js/:file", ({ file }) => new Response(Bun.file(`${jsDir}/${file}`)));
+  .all("/js/:file", ({ file }) => {
+    if (jsPaths.includes(file)) {
+      return new Response(Bun.file(`${jsDir}/${file}`));
+    }
+  });
 
 /*
  * Start server and handle WebSocket connections
@@ -196,14 +156,28 @@ router
 const topic = "chat_room";
 let prevMessageUsername = "";
 let prevMessageTime = moment();
-const connections: Record<string, number> = {};
 
-const server = Bun.serve({
+interface ServerData {
+  stoken?: string;
+  token?: string;
+  username?: string;
+}
+let connections: ServerWebSocket<ServerData>[] = [];
+
+let connectionCount: Record<string, number> = {};
+
+function info(ws: ServerWebSocket<ServerData>, msg: string) {
+  console.info(
+    `${moment()}\t${ws.data?.token?.substring(0, 10)}\t${ws.data?.username}${" ".repeat(24 - (ws.data?.username?.length ?? 0))}\t${msg}`,
+  );
+}
+
+const server = Bun.serve<ServerData>({
   port: process.env.PORT ?? 3000,
   fetch(req, server) {
     const url = new URL(req.url);
     if (url.pathname === "/chat") {
-      return server.upgrade(req, { data: { stoken: null } })
+      return server.upgrade(req, { data: {} })
         ? undefined
         : new Response("Websocket upgrade error", { status: 400 });
     }
@@ -211,119 +185,160 @@ const server = Bun.serve({
   },
   websocket: {
     async message(ws, message) {
-      const data = JSON.parse(message.toString());
+      let msg;
+      try {
+        msg = JSON.parse(message.toString());
+      } catch (e) {
+        return;
+      }
+      if (!msg.stoken) return;
+      ws.data.token ??= sessions.getLoginToken(msg.stoken);
+      if (
+        !ws.data.token ||
+        ws.data.token !== sessions.getLoginToken(msg.stoken)
+      )
+        return;
+      ws.data.stoken = await sessions.nextSessionToken(msg.stoken);
+      ws.sendText(
+        JSON.stringify({ stoken: ws.data.stoken, username: ws.data.username }),
+      );
+      ws.data.username ??= await db.read("username", ws.data.token);
+      if (!ws.data.username) return;
 
-      // Always require valid session tokens
-      let stoken = data.session_token;
-      const token = sessions.getLoginToken(stoken);
-      if (!token) return;
-      stoken = await sessions.nextSessionToken(stoken);
-      (ws.data as any).stoken = stoken;
-
-      const username = await db.read("username", token);
-      if (!username) return;
-
-      // On first load, subscribe to the chat room and show a status message if necessary
-      if (data.first_load) {
+      if (msg.first_load) {
+        info(ws, "first_load");
+        connections.push(ws);
+        connectionCount[ws.data.token] =
+          (connectionCount[ws.data.token] ?? 0) + 1;
         ws.subscribe(topic);
-        ws.sendText(SessionToken(stoken));
-
-        // let status = await db.read("status", token);
-        // if (!status) {
-        //   status = "online";
-        //   await db.write("status", token, status);
-        // }
-        const status = "chatting";
-        const presence: Presence = "chatting";
-
         const updateOnly =
-          token in userInfo && userInfo[token].status !== "offline";
-
-        if (updateOnly) {
-          server.publish(topic, UserPresence(username, presence));
-          server.publish(topic, UserStatus(username, status));
-        }
-
-        userInfo[token] = { username, presence, status, lastActive: moment() };
-        setTimeout(() => setInactive(token), awayDuration);
+          stats[ws.data.token] && stats[ws.data.token].presence !== "offline";
+        stats[ws.data.token] = {
+          username: ws.data.username,
+          status: "chatting",
+          presence: "chatting",
+          lastActive: moment(),
+        };
+        setTimeout(() => setInactive(ws.data.token!), awayDuration);
         refreshUsers();
-
-        if (!updateOnly) {
-          server.publish(topic, html` <div id="users">${users}</div> `);
+        if (updateOnly) {
+          server.publish(
+            topic,
+            UserPresence(ws.data.username, stats[ws.data.token].presence),
+          );
+          server.publish(
+            topic,
+            UserStatus(ws.data.username, stats[ws.data.token].status),
+          );
+          return;
         }
-
-        if (token in connections) {
-          connections[token]++;
-        } else {
-          connections[token] = 1;
-        }
-
+        server.publish(topic, html` <div id="users">${users}</div> `);
         return;
       }
 
-      const content = xss(
-        new Converter({
-          simpleLineBreaks: true,
-          emoji: true,
-          ghCodeBlocks: true,
-        }).makeHtml(Bun.escapeHTML(data.new_message)),
-      );
-
-      const chatMessage = ChatMessage(
-        content,
-        username,
-        prevMessageUsername === username &&
-          moment().diff(prevMessageTime) <=
-            moment.duration(1, "minute").asMilliseconds() &&
-          prevMessageTime.minutes() === moment().minutes(),
-      );
-      prevMessageTime = moment();
-      server.publish(
-        topic,
-        html`
-          <div id="chat_messages" hx-swap-oob="beforeend">${chatMessage}</div>
-        `,
-      );
-      server.publish(topic, UserPresence(username, "chatting"));
-      await appendFile(chatHistoryFile, chatMessage);
-      ws.sendText(SessionToken(stoken));
-      ws.sendText(ChatInput());
-
-      if (token in userInfo) {
-        userInfo[token].lastActive = moment();
-        setTimeout(() => setInactive(token), awayDuration);
+      if (msg.new_message && msg.new_message.length > 0) {
+        info(ws, `new_message\t${msg.new_message}`);
+        const content = xss(
+          new Converter({
+            simpleLineBreaks: true,
+            emoji: true,
+            ghCodeBlocks: true,
+          }).makeHtml(Bun.escapeHTML(msg.new_message)),
+        );
+        const chatMessage = ChatMessage(
+          content,
+          ws.data.username,
+          prevMessageUsername === ws.data.username &&
+            moment().diff(prevMessageTime) <=
+              moment.duration(1, "minute").asMilliseconds() &&
+            prevMessageTime.minutes() === moment().minutes(),
+        );
+        server.publish(
+          topic,
+          html`
+            <div id="chat_messages" hx-swap-oob="beforeend">${chatMessage}</div>
+          `,
+        );
+        ws.sendText(ChatInput());
+        prevMessageTime = moment();
+        prevMessageUsername = ws.data.username;
+        await appendFile(chatHistoryFile, chatMessage);
+        if (stats[ws.data.token]) {
+          stats[ws.data.token].presence = "chatting";
+          stats[ws.data.token].lastActive = moment();
+          setTimeout(() => setInactive(ws.data.token!), awayDuration);
+        }
+        server.publish(topic, UserPresence(ws.data.username, "chatting"));
+        refreshUsers();
+        return;
       }
 
-      prevMessageUsername = username;
-
-      refreshUsers();
-    },
-    async close(ws) {
-      const stoken = (ws.data as any)?.stoken;
-      if (!stoken) return;
-
-      // Always delete a stoken regardless of whether it is valid
-      const token = sessions.getLoginToken(stoken);
-      sessions.delete(stoken);
-      if (!token) return;
-
-      const username = await db.read("username", token);
-      if (!username) return;
-
-      if (token in connections) {
-        connections[token]--;
-        if (connections[token] === 0) {
-          delete connections[token];
+      if (msg.new_username) {
+        info(ws, `new_username\t${msg.new_username}`);
+        const u = msg.new_username;
+        if (u === ws.data.username) {
+          ws.sendText(
+            JSON.stringify({
+              new_username_success: u,
+            }),
+          );
+          return;
+        }
+        if (
+          u.length >= 3 &&
+          u.length <= 24 &&
+          xss(Bun.escapeHTML(u)) === u &&
+          !(await db.read("token", u))
+        ) {
+          await db.write("token", u, ws.data.token);
+          await db.write("username", ws.data.token, u);
+          await db.delete("token", ws.data.username);
+          if (stats[ws.data.token]) {
+            stats[ws.data.token].username = u;
+            stats[ws.data.token].lastActive = moment();
+            setTimeout(() => setInactive(ws.data.token!), awayDuration);
+            refreshUsers();
+            server.publish(topic, html` <div id="users">${users}</div> `);
+          }
+          for (const conn of connections) {
+            if (conn.data.token === ws.data.token) {
+              conn.data.username = u;
+              conn.sendText(
+                JSON.stringify({
+                  new_username_success: u,
+                }),
+              );
+            }
+          }
+          return;
         }
       }
+    },
+    async close(ws) {
+      if (ws.data.stoken) {
+        sessions.delete(ws.data.stoken);
 
-      if (token in connections) return;
+        connections = connections.filter(
+          (c) => c.data.stoken !== ws.data.stoken,
+        );
+      }
 
-      if (token in userInfo) {
-        userInfo[token].presence = "offline";
-        userInfo[token].status = "offline";
-        refreshUsers();
-        server.publish(topic, html` <div id="users">${users}</div> `);
+      if (ws.data.token) {
+        if (connectionCount[ws.data.token]) {
+          if (connectionCount[ws.data.token] === 1) {
+            delete connectionCount[ws.data.token];
+          } else {
+            connectionCount[ws.data.token]--;
+          }
+        }
+        if (!connectionCount[ws.data.token]) {
+          if (stats[ws.data.token]) {
+            stats[ws.data.token].presence = "offline";
+            stats[ws.data.token].status = "offline";
+            refreshUsers();
+            server.publish(topic, html` <div id="users">${users}</div> `);
+          }
+        }
       }
     },
   },

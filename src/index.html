@@ -30,19 +30,18 @@
       >
     </main>
 
+    <script src="js/htmx.min.js"></script>
+    <script src="js/ws.js"></script>
+    <script src="js/moment.js"></script>
+
     <script>
-      document.body.addEventListener("htmx:wsOpen", (e) => {
-        document.getElementById("ws_status").innerHTML = "Connected";
-        e.detail.socketWrapper.send(
-          JSON.stringify({
-            first_load: true,
-            session_token: document.getElementById("session_token").value,
-          }),
-        );
-      });
-      document.body.addEventListener("htmx:wsClose", () => {
-        document.getElementById("ws_status").innerHTML = "No connection!";
-      });
+      let socket;
+      htmx.createWebSocket = (url) => {
+        socket = new WebSocket(url);
+        return socket;
+      };
+
+      let stoken, username;
 
       document.body.addEventListener("htmx:load", () => {
         const chat = document.getElementById("chat_messages");
@@ -51,26 +50,79 @@
         }
       });
 
+      document.body.addEventListener("htmx:wsOpen", (e) => {
+        document.getElementById("ws_status").innerHTML = "Connected";
+        const session_token = document.getElementById("session_token");
+        socket.send(
+          JSON.stringify({
+            first_load: true,
+            stoken: session_token.value,
+          }),
+        );
+        session_token.remove();
+      });
+
+      document.body.addEventListener("htmx:wsConfigSend", (e) => {
+        e.detail.parameters.stoken = stoken;
+      });
+
+      document.body.addEventListener("htmx:wsClose", () => {
+        document.getElementById("ws_status").innerHTML = "No connection!";
+      });
+
       let isScrolledToBottom = true;
       document.body.addEventListener("htmx:wsBeforeMessage", () => {
         const chat = document.getElementById("chat_messages");
         isScrolledToBottom =
           chat.scrollHeight - chat.clientHeight <= chat.scrollTop + 1;
       });
-      document.body.addEventListener("htmx:wsAfterMessage", () => {
+
+      document.body.addEventListener("htmx:wsAfterMessage", (e) => {
+        let msg;
+        try {
+          msg = JSON.parse(e.detail.message);
+        } catch (e) {}
+
+        if (msg) {
+          if (msg.stoken) stoken = msg.stoken;
+          if (msg.username) username = msg.username;
+          if (msg.new_username_success) {
+            document.getElementById("new_username").hidden = true;
+            document.getElementById("username").innerHTML =
+              msg.new_username_success;
+            document.getElementById("username").hidden = false;
+          }
+          return;
+        }
+
         const usernames = document.getElementsByClassName(
           "chat_message_username",
         );
         if (usernames.length) {
           const lastUsername =
             usernames[usernames.length - 1].querySelector("b").innerHTML;
-          const myUsername = document.getElementById("username_value").value;
           const chat = document.getElementById("chat_messages");
-          if (isScrolledToBottom || lastUsername === myUsername) {
+          if (isScrolledToBottom || lastUsername === username) {
             chat.scrollTop = chat.scrollHeight - chat.clientHeight;
           }
         }
       });
+
+      function editUsername() {
+        document.getElementById("username").hidden = true;
+        document.getElementById("new_username").hidden = false;
+      }
+
+      function newUsername(event) {
+        if (event.keyCode === 13) {
+          socket.send(
+            JSON.stringify({
+              new_username: document.getElementById("new_username").value,
+              stoken,
+            }),
+          );
+        }
+      }
 
       function handleNewMessageEnter(e) {
         if (e.which === 13 && !e.shiftKey) {
@@ -109,9 +161,5 @@
         });
       }
     </script>
-
-    <script src="js/htmx.min.js"></script>
-    <script src="js/ws.js"></script>
-    <script src="js/moment.js"></script>
   </body>
 </html>

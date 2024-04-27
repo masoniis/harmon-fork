@@ -48,7 +48,7 @@ export default {
    * Exchange a valid session token for a new one, invalidating the old one.
    */
   async nextSessionToken(stoken: string) {
-    if (!(stoken in sessions)) return;
+    if (!sessions[stoken]) return;
     const token = sessions[stoken];
     const nextStoken = await randomSessionToken(token);
     sessions[nextStoken] = token;
@@ -57,11 +57,12 @@ export default {
   },
 
   getLoginToken(stoken: string) {
-    if (!(stoken in sessions)) return;
+    if (!sessions[stoken]) return;
     return sessions[stoken];
   },
 
-  delete(stoken: string) {
+  delete(stoken?: string) {
+    if (!stoken || !sessions[stoken]) return;
     delete sessions[stoken];
   },
 };
