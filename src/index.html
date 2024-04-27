@@ -1,202 +1,202 @@
 <!doctype html>
 <html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="darkreader-lock" />
-    <link rel="stylesheet" href="index.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap"
-      rel="stylesheet"
-    />
-  </head>
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="darkreader-lock" />
+		<link rel="stylesheet" href="index.css" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap"
+			rel="stylesheet"
+		/>
+	</head>
 
-  <body>
-    <main>
-      <form id="login" hx-post="/login" hx-target="main">
-        <label for="token">Login</label>
-        <input autofocus id="token" name="token" type="password" />
-        <small id="login_error"></small>
-      </form>
-      <hr />
-      <a
-        id="register_link"
-        href="#"
-        hx-post="/register"
-        hx-trigger="click"
-        hx-target="#register_link"
-        hx-swap="outerHTML"
-        >Register</a
-      >
-    </main>
+	<body>
+		<main>
+			<form id="login" hx-post="/login" hx-target="main">
+				<label for="token">Login</label>
+				<input autofocus id="token" name="token" type="password" />
+				<small id="login_error"></small>
+			</form>
+			<hr />
+			<a
+				id="register_link"
+				href="#"
+				hx-post="/register"
+				hx-trigger="click"
+				hx-target="#register_link"
+				hx-swap="outerHTML"
+				>Register</a
+			>
+		</main>
 
-    <script src="js/htmx.min.js"></script>
-    <script src="js/ws.js"></script>
-    <script src="js/moment.js"></script>
+		<script src="js/htmx.min.js"></script>
+		<script src="js/ws.js"></script>
+		<script src="js/moment.js"></script>
 
-    <script>
-      let socket;
-      htmx.createWebSocket = (url) => {
-        socket = new WebSocket(url);
-        return socket;
-      };
+		<script>
+			let socket;
+			htmx.createWebSocket = (url) => {
+				socket = new WebSocket(url);
+				return socket;
+			};
 
-      let stoken, username;
-      let editingUsername = false;
+			let stoken, username;
+			let editingUsername = false;
 
-      document.body.addEventListener("htmx:load", () => {
-        const chat = document.getElementById("chat_messages");
-        if (chat) {
-          chat.scrollTop = chat.scrollHeight - chat.clientHeight;
-        }
-      });
+			document.body.addEventListener("htmx:load", () => {
+				const chat = document.getElementById("chat_messages");
+				if (chat) {
+					chat.scrollTop = chat.scrollHeight - chat.clientHeight;
+				}
+			});
 
-      document.body.addEventListener("htmx:wsOpen", (e) => {
-        document.getElementById("ws_status").innerHTML = "Connected";
-        const session_token = document.getElementById("session_token");
-        socket.send(
-          JSON.stringify({
-            first_load: true,
-            stoken: session_token.value,
-          }),
-        );
-        session_token.remove();
-      });
+			document.body.addEventListener("htmx:wsOpen", (e) => {
+				document.getElementById("ws_status").innerHTML = "Connected";
+				const session_token = document.getElementById("session_token");
+				socket.send(
+					JSON.stringify({
+						first_load: true,
+						stoken: session_token.value,
+					}),
+				);
+				session_token.remove();
+			});
 
-      document.body.addEventListener("htmx:wsConfigSend", (e) => {
-        e.detail.parameters.stoken = stoken;
-      });
+			document.body.addEventListener("htmx:wsConfigSend", (e) => {
+				e.detail.parameters.stoken = stoken;
+			});
 
-      document.body.addEventListener("htmx:wsClose", () => {
-        document.getElementById("ws_status").innerHTML = "No connection!";
-      });
+			document.body.addEventListener("htmx:wsClose", () => {
+				document.getElementById("ws_status").innerHTML = "No connection!";
+			});
 
-      let isScrolledToBottom = true;
-      document.body.addEventListener("htmx:wsBeforeMessage", () => {
-        const chat = document.getElementById("chat_messages");
-        isScrolledToBottom =
-          chat.scrollHeight - chat.clientHeight <= chat.scrollTop + 1;
-      });
+			let isScrolledToBottom = true;
+			document.body.addEventListener("htmx:wsBeforeMessage", () => {
+				const chat = document.getElementById("chat_messages");
+				isScrolledToBottom =
+					chat.scrollHeight - chat.clientHeight <= chat.scrollTop + 1;
+			});
 
-      document.body.addEventListener("htmx:wsAfterMessage", (e) => {
-        let msg;
-        try {
-          msg = JSON.parse(e.detail.message);
-        } catch (e) {}
+			document.body.addEventListener("htmx:wsAfterMessage", (e) => {
+				let msg;
+				try {
+					msg = JSON.parse(e.detail.message);
+				} catch (e) {}
 
-        if (msg) {
-          if (msg.stoken) stoken = msg.stoken;
-          if (msg.username) username = msg.username;
-          if (msg.new_username_success) {
-            document.getElementById("new_username").hidden = true;
-            document.getElementById("username").innerHTML =
-              msg.new_username_success;
-            document.getElementById("username").hidden = false;
-            editingUsername = false;
-          }
-          if (msg.new_banner_success) {
-            closeDialog("new_banner_dialog");
-          }
-          return;
-        }
+				if (msg) {
+					if (msg.stoken) stoken = msg.stoken;
+					if (msg.username) username = msg.username;
+					if (msg.new_username_success) {
+						document.getElementById("new_username").hidden = true;
+						document.getElementById("username").innerHTML =
+							msg.new_username_success;
+						document.getElementById("username").hidden = false;
+						editingUsername = false;
+					}
+					if (msg.new_banner_success) {
+						closeDialog("new_banner_dialog");
+					}
+					return;
+				}
 
-        const usernames = document.getElementsByClassName(
-          "chat_message_username",
-        );
-        if (usernames.length) {
-          const lastUsername =
-            usernames[usernames.length - 1].querySelector("b").innerHTML;
-          const chat = document.getElementById("chat_messages");
-          if (isScrolledToBottom || lastUsername === username) {
-            chat.scrollTop = chat.scrollHeight - chat.clientHeight;
-          }
-        }
-      });
+				const usernames = document.getElementsByClassName(
+					"chat_message_username",
+				);
+				if (usernames.length) {
+					const lastUsername =
+						usernames[usernames.length - 1].querySelector("b").innerHTML;
+					const chat = document.getElementById("chat_messages");
+					if (isScrolledToBottom || lastUsername === username) {
+						chat.scrollTop = chat.scrollHeight - chat.clientHeight;
+					}
+				}
+			});
 
-      function editUsername(event) {
-        editingUsername = true;
-        document.getElementById("username").hidden = true;
-        document.getElementById("new_username").hidden = false;
-        document.getElementById("new_username").focus();
-        document.getElementById("new_username").select();
-      }
+			function editUsername(event) {
+				editingUsername = true;
+				document.getElementById("username").hidden = true;
+				document.getElementById("new_username").hidden = false;
+				document.getElementById("new_username").focus();
+				document.getElementById("new_username").select();
+			}
 
-      function editBanner(event) {
-        if (editingUsername) return;
-        showDialog("new_banner_dialog");
-      }
+			function editBanner(event) {
+				if (editingUsername) return;
+				showDialog("new_banner_dialog");
+			}
 
-      function newUsername(event) {
-        if (event.keyCode === 13) {
-          socket.send(
-            JSON.stringify({
-              new_username: document.getElementById("new_username").value,
-              stoken,
-            }),
-          );
-        }
-      }
+			function newUsername(event) {
+				if (event.keyCode === 13) {
+					socket.send(
+						JSON.stringify({
+							new_username: document.getElementById("new_username").value,
+							stoken,
+						}),
+					);
+				}
+			}
 
-      function newBanner(event) {
-        if (event.keyCode === 13) {
-          socket.send(
-            JSON.stringify({
-              new_banner: document.getElementById("new_banner").value,
-              stoken,
-            }),
-          );
-        }
-      }
+			function newBanner(event) {
+				if (event.keyCode === 13) {
+					socket.send(
+						JSON.stringify({
+							new_banner: document.getElementById("new_banner").value,
+							stoken,
+						}),
+					);
+				}
+			}
 
-      function showDialog(id) {
-        document.getElementById(id).showModal();
-      }
+			function showDialog(id) {
+				document.getElementById(id).showModal();
+			}
 
-      function closeDialog(id) {
-        document.getElementById(id).close();
-      }
+			function closeDialog(id) {
+				document.getElementById(id).close();
+			}
 
-      function handleNewMessageEnter(e) {
-        if (e.which === 13 && !e.shiftKey) {
-          if (!e.repeat) {
-            e.target.form.dispatchEvent(
-              new Event("submit", { cancelable: true }),
-            );
-          }
-          e.preventDefault();
-        }
-      }
+			function handleNewMessageEnter(e) {
+				if (e.which === 13 && !e.shiftKey) {
+					if (!e.repeat) {
+						e.target.form.dispatchEvent(
+							new Event("submit", { cancelable: true }),
+						);
+					}
+					e.preventDefault();
+				}
+			}
 
-      function onVisible(element, callback) {
-        new IntersectionObserver((entries, observer) => {
-          entries.forEach((entry) => {
-            if (entry.intersectionRatio > 0) {
-              callback(element);
-              observer.disconnect();
-            }
-          });
-        }).observe(element);
-        if (!callback) return new Promise((r) => (callback = r));
-      }
+			function onVisible(element, callback) {
+				new IntersectionObserver((entries, observer) => {
+					entries.forEach((entry) => {
+						if (entry.intersectionRatio > 0) {
+							callback(element);
+							observer.disconnect();
+						}
+					});
+				}).observe(element);
+				if (!callback) return new Promise((r) => (callback = r));
+			}
 
-      const tsFormatOtherYear = "D MMM Y [at] h:mm a";
-      const tsFormatOther = "D MMM [at] h:mm a";
-      function displayTime(ts) {
-        const m = moment(ts);
-        const isCurrentYear = m.year() === moment().year();
-        const format = isCurrentYear ? tsFormatOther : tsFormatOtherYear;
-        return m.calendar({
-          sameDay: "h:mm a",
-          lastDay: "ddd [at] h:mm a",
-          lastWeek: format,
-          sameElse: format,
-        });
-      }
+			const tsFormatOtherYear = "D MMM Y [at] h:mm a";
+			const tsFormatOther = "D MMM [at] h:mm a";
+			function displayTime(ts) {
+				const m = moment(ts);
+				const isCurrentYear = m.year() === moment().year();
+				const format = isCurrentYear ? tsFormatOther : tsFormatOtherYear;
+				return m.calendar({
+					sameDay: "h:mm a",
+					lastDay: "ddd [at] h:mm a",
+					lastWeek: format,
+					sameElse: format,
+				});
+			}
 
-      function showUsernameEditTip(show) {
-        document.getElementById("username_edit_tip").hidden = !show;
-      }
-    </script>
-  </body>
+			function showUsernameEditTip(show) {
+				document.getElementById("username_edit_tip").hidden = !show;
+			}
+		</script>
+	</body>
 </html>
