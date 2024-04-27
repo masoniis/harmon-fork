@@ -255,3 +255,7 @@ button:hover {
 	font-weight: normal;
 	padding-left: 1px;
 }
+
+pre {
+	white-space: pre-wrap;
+}
