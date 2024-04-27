@@ -83,10 +83,10 @@ export function ChatMessage(
             const content = document.getElementById(
               "chat_message_${hash}_content",
             );
-            const username = document.getElementById("username_value");
+            const username = document.getElementById("username").innerHTML;
             if (content && username) {
               for (const p of content.getElementsByTagName("p")) {
-                if (p && p.innerHTML.includes("@" + username.value)) {
+                if (p && p.innerHTML.includes("@" + username)) {
                   content.setAttribute(
                     "style",
                     "background: var(--mention-bg-color)",
