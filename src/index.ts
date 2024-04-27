@@ -87,8 +87,7 @@ function refreshUsers() {
 
 const awayDuration = moment.duration(10, "minutes").asMilliseconds();
 function setInactive(token: string) {
-  if (!(token in stats)) return;
-  if (stats[token].presence === "offline") return;
+  if (stats[token] || stats[token].presence === "offline") return;
   if (moment().diff(stats[token].lastActive) > awayDuration) {
     stats[token].presence = "inactive";
     stats[token].status = "inactive";
@@ -275,6 +274,7 @@ const server = Bun.serve<ServerData>({
         await appendFile(chatHistoryFile, chatMessage);
         if (stats[ws.data.token]) {
           stats[ws.data.token].presence = "chatting";
+          stats[ws.data.token].status = "chatting";
           stats[ws.data.token].lastActive = moment();
           setTimeout(() => setInactive(ws.data.token!), awayDuration);
         }
@@ -305,6 +305,8 @@ const server = Bun.serve<ServerData>({
           await db.delete("token", ws.data.username);
           if (stats[ws.data.token]) {
             stats[ws.data.token].username = u;
+            stats[ws.data.token].presence = "chatting";
+            stats[ws.data.token].status = "chatting";
             stats[ws.data.token].lastActive = moment();
             setTimeout(() => setInactive(ws.data.token!), awayDuration);
             refreshUsers();
@@ -339,6 +341,8 @@ const server = Bun.serve<ServerData>({
           await db.write("banner", ws.data.token, b);
           if (stats[ws.data.token]) {
             stats[ws.data.token].banner = b;
+            stats[ws.data.token].presence = "chatting";
+            stats[ws.data.token].status = "chatting";
             stats[ws.data.token].lastActive = moment();
             setTimeout(() => setInactive(ws.data.token!), awayDuration);
             refreshUsers();
