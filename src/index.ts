@@ -87,11 +87,10 @@ function refreshUsers() {
 
 const awayDuration = moment.duration(10, "minutes").asMilliseconds();
 function setInactive(token: string) {
-	if (stats[token] || stats[token].presence === "offline") return;
+	if (!stats[token] || stats[token].presence === "offline") return;
 	if (moment().diff(stats[token].lastActive) > awayDuration) {
 		stats[token].presence = "inactive";
 		server.publish(topic, UserPresence(stats[token].username, "inactive"));
-		server.publish(topic, UserStatus(stats[token].username, "inactive"));
 		refreshUsers();
 	}
 }
@@ -329,6 +328,7 @@ const server = Bun.serve<ServerData>({
 						stats[ws.data.token].presence = "chatting";
 						stats[ws.data.token].lastActive = moment();
 						setTimeout(() => setInactive(ws.data.token!), awayDuration);
+						server.publish(topic, UserPresence(ws.data.username, "chatting"));
 						refreshUsers();
 						server.publish(topic, html` <div id="users">${users}</div> `);
 					}
@@ -367,6 +367,7 @@ const server = Bun.serve<ServerData>({
 						stats[ws.data.token].status = s;
 						stats[ws.data.token].lastActive = moment();
 						setTimeout(() => setInactive(ws.data.token!), awayDuration);
+						server.publish(topic, UserPresence(ws.data.username, "chatting"));
 						refreshUsers();
 						server.publish(topic, html` <div id="users">${users}</div> `);
 					}
@@ -402,6 +403,7 @@ const server = Bun.serve<ServerData>({
 						stats[ws.data.token].presence = "chatting";
 						stats[ws.data.token].lastActive = moment();
 						setTimeout(() => setInactive(ws.data.token!), awayDuration);
+						server.publish(topic, UserPresence(ws.data.username, "chatting"));
 						refreshUsers();
 						server.publish(topic, html` <div id="users">${users}</div> `);
 					}
