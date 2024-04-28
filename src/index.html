@@ -96,6 +96,8 @@
 					}
 					if (msg.new_status_success) {
 						document.getElementById("new_status").hidden = true;
+						document.getElementById("new_status").value =
+							msg.new_status_success;
 						document.getElementById("status").innerHTML =
 							msg.new_status_success;
 						document.getElementById("status").hidden = false;
