@@ -193,15 +193,23 @@ let peerIds: string[] = [];
 let connectionCount: Record<string, number> = {};
 let peerCount: Record<string, number> = {};
 
-const peerServerConfig = {
-	port: parseInt(process.env.PEER_SERVER_PORT ?? "9000"),
-	host: process.env.PEER_SERVER_HOST ?? "localhost",
-	path: process.env.PEER_SERVER_PATH ?? "/",
-	proxied: process.env.PEER_SERVER_PROXIED === "true",
-};
+const peerServerConfig =
+	process.env.PEER_SERVER_PROXIED === "true"
+		? {
+				port: parseInt(process.env.PEER_SERVER_PORT ?? "9000"),
+				path: process.env.PEER_SERVER_PATH ?? "/",
+				proxied: true,
+			}
+		: {
+				port: parseInt(process.env.PEER_SERVER_PORT ?? "9000"),
+				host: process.env.PEER_SERVER_HOST ?? "localhost",
+				path: process.env.PEER_SERVER_PATH ?? "/",
+			};
 
 const peerClientConfig = {
-	port: process.env.PEER_PROXY_PORT ?? peerServerConfig.port,
+	port: parseInt(
+		process.env.PEER_PROXY_PORT ?? peerServerConfig.port.toString(),
+	),
 	host: peerServerConfig.host,
 	path: peerServerConfig.path,
 };
@@ -269,10 +277,11 @@ const server = Bun.serve<ServerData>({
 				ws.subscribe(topic);
 				const updateOnly =
 					stats[ws.data.token] && stats[ws.data.token].presence !== "offline";
+				const presence = stats[ws.data.token]?.presence ?? "offline";
 				stats[ws.data.token] = {
 					username: ws.data.username,
 					status: ws.data.status,
-					presence: "chatting",
+					presence: presence === "offline" ? "chatting" : presence,
 					lastActive: moment(),
 					banner: ws.data.banner,
 				};
@@ -324,11 +333,19 @@ const server = Bun.serve<ServerData>({
 				prevMessageUsername = ws.data.username;
 				await appendFile(chatHistoryFile, chatMessage);
 				if (stats[ws.data.token]) {
-					stats[ws.data.token].presence = "chatting";
+					if (stats[ws.data.token].presence !== "talking") {
+						stats[ws.data.token].presence = "chatting";
+					}
 					stats[ws.data.token].lastActive = moment();
 					setTimeout(() => setInactive(ws.data.token!), awayDuration);
 				}
-				server.publish(topic, UserPresence(ws.data.username, "chatting"));
+				server.publish(
+					topic,
+					UserPresence(
+						ws.data.username,
+						stats[ws.data.token]?.presence ?? "chatting",
+					),
+				);
 				refreshUsers();
 				return;
 			}
@@ -360,10 +377,15 @@ const server = Bun.serve<ServerData>({
 					await db.delete("token", ws.data.username);
 					if (stats[ws.data.token]) {
 						stats[ws.data.token].username = u;
-						stats[ws.data.token].presence = "chatting";
+						if (stats[ws.data.token].presence !== "talking") {
+							stats[ws.data.token].presence = "chatting";
+						}
 						stats[ws.data.token].lastActive = moment();
 						setTimeout(() => setInactive(ws.data.token!), awayDuration);
-						server.publish(topic, UserPresence(ws.data.username, "chatting"));
+						server.publish(
+							topic,
+							UserPresence(ws.data.username, stats[ws.data.token].presence),
+						);
 						refreshUsers();
 						server.publish(topic, html` <div id="users">${users}</div> `);
 					}
@@ -398,11 +420,16 @@ const server = Bun.serve<ServerData>({
 				if (s.length >= 1 && s.length <= 32 && xss(Bun.escapeHTML(s)) === s) {
 					await db.write("status", ws.data.token, s);
 					if (stats[ws.data.token]) {
-						stats[ws.data.token].presence = "chatting";
+						if (stats[ws.data.token].presence !== "talking") {
+							stats[ws.data.token].presence = "chatting";
+						}
 						stats[ws.data.token].status = s;
 						stats[ws.data.token].lastActive = moment();
 						setTimeout(() => setInactive(ws.data.token!), awayDuration);
-						server.publish(topic, UserPresence(ws.data.username, "chatting"));
+						server.publish(
+							topic,
+							UserPresence(ws.data.username, stats[ws.data.token].presence),
+						);
 						refreshUsers();
 						server.publish(topic, html` <div id="users">${users}</div> `);
 					}
@@ -435,10 +462,15 @@ const server = Bun.serve<ServerData>({
 					await db.write("banner", ws.data.token, b);
 					if (stats[ws.data.token]) {
 						stats[ws.data.token].banner = b;
-						stats[ws.data.token].presence = "chatting";
+						if (stats[ws.data.token].presence !== "talking") {
+							stats[ws.data.token].presence = "chatting";
+						}
 						stats[ws.data.token].lastActive = moment();
 						setTimeout(() => setInactive(ws.data.token!), awayDuration);
-						server.publish(topic, UserPresence(ws.data.username, "chatting"));
+						server.publish(
+							topic,
+							UserPresence(ws.data.username, stats[ws.data.token].presence),
+						);
 						refreshUsers();
 						server.publish(topic, html` <div id="users">${users}</div> `);
 					}
@@ -524,6 +556,13 @@ const server = Bun.serve<ServerData>({
 						delete connectionCount[ws.data.token];
 					} else {
 						connectionCount[ws.data.token]--;
+					}
+				}
+				if (peerCount[ws.data.token]) {
+					if (peerCount[ws.data.token] === 1) {
+						delete peerCount[ws.data.token];
+					} else {
+						peerCount[ws.data.token]--;
 					}
 				}
 				if (!connectionCount[ws.data.token]) {

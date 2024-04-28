@@ -236,6 +236,7 @@ export function VoiceControls() {
 			id="rtc_voice_toggle"
 			class="rtc_voice_toggle_on"
 			onclick="toggleVoice()"
+			disabled
 		>
 			Join Voice
 		</button>

@@ -56,6 +56,13 @@
 			let myPeerId;
 			let peer;
 
+			const constraints = {
+				audio: {
+					noiseSuppression: true,
+				},
+				video: false,
+			};
+
 			document.body.addEventListener("htmx:load", () => {
 				const chat = document.getElementById("chat_messages");
 				if (chat) {
@@ -98,7 +105,11 @@
 				if (msg) {
 					if (msg.stoken) stoken = msg.stoken;
 					if (msg.username) username = msg.username;
-					if (msg.peer_client_config) peerClientConfig = msg.peer_server_config;
+					if (msg.peer_client_config) {
+						peerClientConfig = msg.peer_client_config;
+						console.log(peerClientConfig);
+						document.getElementById("rtc_voice_toggle").disabled = false;
+					}
 					if (msg.new_username_success) {
 						document.getElementById("new_username").hidden = true;
 						document.getElementById("username").innerHTML =
@@ -121,7 +132,7 @@
 					}
 					if (msg.peer_ids) {
 						getUserMedia(
-							{ audio: true, video: false },
+							constraints,
 							(stream) => {
 								for (const id of msg.peer_ids) {
 									if (id === myPeerId) continue;
@@ -182,7 +193,7 @@
 					});
 					peer.on("call", (call) => {
 						getUserMedia(
-							{ audio: true, video: false },
+							constraints,
 							(stream) => {
 								call.answer(stream);
 								call.on("stream", (remoteStream) => {
