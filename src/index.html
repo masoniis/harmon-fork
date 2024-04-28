@@ -214,6 +214,10 @@
 			function showEditTip(attr, show) {
 				document.getElementById(`${attr}_edit_tip`).hidden = !show;
 			}
+
+			function copyToClipboard(text) {
+				navigator.clipboard.writeText(text);
+			}
 		</script>
 	</body>
 </html>

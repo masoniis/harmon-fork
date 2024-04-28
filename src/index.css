@@ -260,3 +260,11 @@ button:hover {
 pre {
 	white-space: pre-wrap;
 }
+
+#register_token {
+  cursor: pointer; /* Changes the cursor to a pointer on hover */
+}
+
+#register_token:hover {
+  opacity: 0.8; /* Reduces the opacity on hover */
+}

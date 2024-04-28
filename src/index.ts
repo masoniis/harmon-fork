@@ -62,15 +62,6 @@ interface UserStats {
 }
 const stats: Record<string, UserStats> = {};
 
-// for (let i = 0; i < 100; i++) {
-//   stats[`user${i}`] = {
-//     username: `user${i}`,
-//     presence: "chatting",
-//     status: "chatting",
-//     lastActive: moment(),
-//   };
-// }
-
 let users = "";
 function refreshUsers() {
 	users = Object.values(stats)
@@ -137,15 +128,15 @@ router
 			),
 		);
 	})
-	.post(
-		"/register",
-		async () =>
-			new Response(
-				html`<a id="register_link"
-					>Your token is ${await sessions.register()}</a
-				>`,
-			),
-	)
+	.post("/register", async () => {
+		const token = String(await sessions.register());
+		return new Response(
+			html`<a id="register_link">
+							your token is 
+							<span id="register_token" onclick="copyToClipboard('${token}')" >${token}</span>
+					</a>`,
+		)
+	})
 	.get("/", () => new Response(Bun.file(`${import.meta.dir}/index.html`)))
 	.get(
 		"/index.css",
