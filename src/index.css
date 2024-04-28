@@ -7,6 +7,7 @@
 	--accent-color: #666699;
 	--mention-bg-color: #423040;
 	--shadow-color: #161617;
+	--max-chat-width: 1200px;
 }
 
 @media screen and (max-width: 600px) {
@@ -96,7 +97,6 @@ main,
 #users,
 .user,
 .user_username_status,
-.chat_message,
 .chat_message_content {
 	min-width: 0;
 	width: 100%;
@@ -164,7 +164,7 @@ main {
 }
 
 #chat_area {
-	padding: 7px 12px;
+	margin: 7px 0;
 }
 
 hr {
@@ -207,6 +207,21 @@ p {
 .user,
 #my_user_presence_status {
 	gap: 5px;
+}
+
+.chat_message,
+.chat_status_message {
+	padding-left: 12px;
+	padding-right: 12px;
+	box-sizing: border-box;
+}
+
+.chat_message,
+.chat_status_message,
+#chat_controls {
+	max-width: 1440px;
+	width: 100%;
+	margin: 0 auto;
 }
 
 .chat_message:last-of-type {
@@ -262,9 +277,9 @@ pre {
 }
 
 #register_token {
-  cursor: pointer; /* Changes the cursor to a pointer on hover */
+	cursor: pointer; /* Changes the cursor to a pointer on hover */
 }
 
 #register_token:hover {
-  opacity: 0.8; /* Reduces the opacity on hover */
+	opacity: 0.8; /* Reduces the opacity on hover */
 }
