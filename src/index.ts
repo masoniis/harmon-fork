@@ -21,6 +21,7 @@ import {
 	MainArea,
 	MyUserInfo,
 	User,
+	UserListSeparator,
 	UserPresence,
 	UserStatus,
 	type Presence,
@@ -67,7 +68,14 @@ const stats: Record<string, UserStats> = {};
 
 let users = "";
 function refreshUsers() {
-	users = Object.values(stats)
+	users = "";
+	const talking = Object.values(stats)
+		.filter((s) => s.presence === "talking")
+		.sort((a, b) => a.username.localeCompare(b.username))
+		.map((u) => User(u.username, u.presence, u.status, u.banner))
+		.join("");
+	const other = Object.values(stats)
+		.filter((s) => s.presence !== "talking")
 		.sort((a, b) => {
 			if (a.presence !== b.presence) {
 				if (a.presence === "offline") return 1;
@@ -77,11 +85,22 @@ function refreshUsers() {
 		})
 		.map((u) => User(u.username, u.presence, u.status, u.banner))
 		.join("");
+	if (talking.length > 0) {
+		users += UserListSeparator("talking");
+		users += talking;
+	}
+	users += UserListSeparator("chatting");
+	users += other;
 }
 
 const awayDuration = moment.duration(10, "minutes").asMilliseconds();
 function setInactive(token: string) {
-	if (!stats[token] || stats[token].presence === "offline") return;
+	if (
+		!stats[token] ||
+		stats[token].presence === "offline" ||
+		stats[token].presence === "talking"
+	)
+		return;
 	if (moment().diff(stats[token].lastActive) > awayDuration) {
 		stats[token].presence = "inactive";
 		server.publish(topic, UserPresence(stats[token].username, "inactive"));
@@ -172,6 +191,20 @@ let connections: ServerWebSocket<ServerData>[] = [];
 let peerIds: string[] = [];
 
 let connectionCount: Record<string, number> = {};
+let peerCount: Record<string, number> = {};
+
+const peerServerConfig = {
+	port: parseInt(process.env.PEER_SERVER_PORT ?? "9000"),
+	host: process.env.PEER_SERVER_HOST ?? "localhost",
+	path: process.env.PEER_SERVER_PATH ?? "/",
+	proxied: process.env.PEER_SERVER_PROXIED === "true",
+};
+
+const peerClientConfig = {
+	port: process.env.PEER_PROXY_PORT ?? peerServerConfig.port,
+	host: peerServerConfig.host,
+	path: peerServerConfig.path,
+};
 
 function info(ws: ServerWebSocket<ServerData>, msg: string) {
 	console.info(
@@ -220,6 +253,16 @@ const server = Bun.serve<ServerData>({
 
 			if (msg.first_load) {
 				info(ws, "first_load");
+				ws.sendText(
+					JSON.stringify({
+						peer_client_config: peerClientConfig,
+					}),
+				);
+				ws.sendText(
+					JSON.stringify({
+						new_status_success: ws.data.status,
+					}),
+				);
 				connections.push(ws);
 				connectionCount[ws.data.token] =
 					(connectionCount[ws.data.token] ?? 0) + 1;
@@ -247,11 +290,6 @@ const server = Bun.serve<ServerData>({
 					return;
 				}
 				server.publish(topic, html` <div id="users">${users}</div> `);
-				ws.sendText(
-					JSON.stringify({
-						new_status_success: ws.data.status,
-					}),
-				);
 				return;
 			}
 
@@ -427,12 +465,47 @@ const server = Bun.serve<ServerData>({
 			}
 
 			if (msg.peer_id && msg.peer_id.length > 0) {
+				info(ws, `peer_id\t${msg.peer_id}`);
+				peerCount[ws.data.token] = (peerCount[ws.data.token] ?? 0) + 1;
 				ws.sendText(
 					JSON.stringify({
 						peer_ids: peerIds,
 					}),
 				);
 				peerIds.push(msg.peer_id);
+				if (stats[ws.data.token]) {
+					stats[ws.data.token].presence = "talking";
+					server.publish(
+						topic,
+						UserPresence(ws.data.username, stats[ws.data.token].presence),
+					);
+					refreshUsers();
+					server.publish(topic, html` <div id="users">${users}</div> `);
+				}
+				return;
+			}
+
+			if (msg.peer_leave && msg.peer_leave.length > 0) {
+				info(ws, `peer_leave\t${msg.peer_leave}`);
+				peerIds = peerIds.filter((id) => id !== msg.peer_leave);
+				if (peerCount[ws.data.token]) {
+					if (peerCount[ws.data.token] === 1) {
+						delete peerCount[ws.data.token];
+					} else {
+						peerCount[ws.data.token]--;
+					}
+				}
+				if (!peerCount[ws.data.token]) {
+					if (stats[ws.data.token]) {
+						stats[ws.data.token].presence = "chatting";
+						server.publish(
+							topic,
+							UserPresence(ws.data.username, stats[ws.data.token].presence),
+						);
+						refreshUsers();
+						server.publish(topic, html` <div id="users">${users}</div> `);
+					}
+				}
 				return;
 			}
 		},
@@ -466,4 +539,4 @@ const server = Bun.serve<ServerData>({
 	},
 });
 
-PeerServer({ port: 9000 });
+PeerServer(peerServerConfig);

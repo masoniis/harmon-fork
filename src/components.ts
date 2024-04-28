@@ -162,7 +162,7 @@ export function SessionToken(stoken: string) {
 	/>`;
 }
 
-export type Presence = "chatting" | "inactive" | "offline";
+export type Presence = "talking" | "chatting" | "inactive" | "offline";
 
 export function UserPresence(username: string, presence: Presence) {
 	const hash = Bun.hash(username).toString();
@@ -240,4 +240,8 @@ export function VoiceControls() {
 			Join Voice
 		</button>
 	`;
+}
+
+export function UserListSeparator(title: string) {
+	return html` <small class="user_list_separator">${title}</small> `;
 }

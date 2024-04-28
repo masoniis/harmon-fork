@@ -48,8 +48,9 @@
 				navigator.webkitGetUserMedia ||
 				navigator.mozGetUserMedia;
 
-			let stoken, username;
+			let stoken, username, peerClientConfig;
 			let editingUser = false;
+			let joiningVoice = false;
 			let joinedVoice = false;
 			let peerIds = [];
 			let myPeerId;
@@ -97,6 +98,7 @@
 				if (msg) {
 					if (msg.stoken) stoken = msg.stoken;
 					if (msg.username) username = msg.username;
+					if (msg.peer_client_config) peerClientConfig = msg.peer_server_config;
 					if (msg.new_username_success) {
 						document.getElementById("new_username").hidden = true;
 						document.getElementById("username").innerHTML =
@@ -105,6 +107,7 @@
 						editingUser = false;
 					}
 					if (msg.new_status_success) {
+						console.log(msg.new_status_success);
 						document.getElementById("new_status").hidden = true;
 						document.getElementById("new_status").value =
 							msg.new_status_success;
@@ -152,8 +155,9 @@
 			});
 
 			function setJoinedVoice() {
-				const btn = document.getElementById("rtc_voice_toggle");
+				joiningVoice = false;
 				joinedVoice = true;
+				const btn = document.getElementById("rtc_voice_toggle");
 				btn.classList.remove("rtc_voice_toggle_on");
 				btn.classList.add("rtc_voice_toggle_off");
 				btn.innerHTML = "Leave Voice";
@@ -161,11 +165,12 @@
 
 			function toggleVoice() {
 				const btn = document.getElementById("rtc_voice_toggle");
-				if (!joinedVoice) {
-					peer = new Peer({
-						host: "/",
-						port: 9000,
-					});
+				if (!joinedVoice && !joiningVoice) {
+					joiningVoice = true;
+
+					btn.innerHTML = "Waiting for peers...";
+
+					peer = new Peer(peerClientConfig);
 					peer.on("open", (id) => {
 						myPeerId = id;
 						socket.send(
@@ -191,10 +196,19 @@
 							(err) => console.error(err),
 						);
 					});
-				} else {
+				} else if (joinedVoice || joiningVoice) {
+					joiningVoice = false;
+					joinedVoice = false;
+
+					socket.send(
+						JSON.stringify({
+							peer_leave: myPeerId,
+							stoken,
+						}),
+					);
+
 					peer.destroy();
 
-					joinedVoice = false;
 					btn.classList.remove("rtc_voice_toggle_off");
 					btn.classList.add("rtc_voice_toggle_on");
 					btn.innerHTML = "Join Voice";

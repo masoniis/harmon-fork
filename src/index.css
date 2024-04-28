@@ -203,6 +203,10 @@ p {
 	background: lightgray;
 }
 
+.user_presence_talking {
+	background: var(--accent-color);
+}
+
 #chat_controls,
 .user,
 #my_user_presence_status {
@@ -291,4 +295,8 @@ pre {
 
 .rtc_voice_toggle_off {
 	background: var(--accent-color);
+}
+
+.user_list_separator {
+	color: var(--text-dim-color);
 }
