@@ -15,7 +15,7 @@ export function MainArea(
 			<div id="nav_area">
 				<div id="users">${users}</div>
 				<hr />
-				${MyUserInfo(username, presence, status, banner)}
+				${VoiceControls()} ${MyUserInfo(username, presence, status, banner)}
 			</div>
 			<div id="chat_area" hx-ext="ws" ws-connect="/chat">
 				<div id="notifications"></div>
@@ -228,5 +228,16 @@ export function ChangeBannerDialog() {
 				/>
 			</div>
 		</dialog>
+	`;
+}
+export function VoiceControls() {
+	return html`
+		<button
+			id="rtc_voice_toggle"
+			class="rtc_voice_toggle_on"
+			onclick="toggleVoice()"
+		>
+			Join Voice
+		</button>
 	`;
 }

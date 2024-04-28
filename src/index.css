@@ -283,3 +283,12 @@ pre {
 #register_token:hover {
 	opacity: 0.8; /* Reduces the opacity on hover */
 }
+
+#nav_area > hr,
+#nav_area > button {
+	margin-left: 5px;
+}
+
+.rtc_voice_toggle_off {
+	background: var(--accent-color);
+}

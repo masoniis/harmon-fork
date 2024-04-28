@@ -25,6 +25,7 @@ import {
 	UserStatus,
 	type Presence,
 } from "./components";
+import { PeerServer } from "peer";
 
 const dataDir = process.env.DATA_DIR ?? `${cwd()}/data`;
 const chatHistoryFile =
@@ -40,6 +41,8 @@ const jsUrls = [
 	"https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js",
 	"https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js",
 	"https://unpkg.com/moment@2.30.1/moment.js",
+	"https://www.unpkg.com/peerjs@1.1.0/dist/peerjs.min.js",
+	"https://www.unpkg.com/peerjs@1.1.0/dist/peerjs.min.js.map",
 ];
 jsUrls.map(async (url) => {
 	Bun.write(
@@ -132,10 +135,12 @@ router
 		const token = String(await sessions.register());
 		return new Response(
 			html`<a id="register_link">
-							your token is 
-							<span id="register_token" onclick="copyToClipboard('${token}')" >${token}</span>
-					</a>`,
-		)
+				your token is
+				<span id="register_token" onclick="copyToClipboard('${token}')"
+					>${token}</span
+				>
+			</a>`,
+		);
 	})
 	.get("/", () => new Response(Bun.file(`${import.meta.dir}/index.html`)))
 	.get(
@@ -164,6 +169,7 @@ interface ServerData {
 	status?: string;
 }
 let connections: ServerWebSocket<ServerData>[] = [];
+let peerIds: string[] = [];
 
 let connectionCount: Record<string, number> = {};
 
@@ -419,6 +425,16 @@ const server = Bun.serve<ServerData>({
 				}
 				return;
 			}
+
+			if (msg.peer_id && msg.peer_id.length > 0) {
+				ws.sendText(
+					JSON.stringify({
+						peer_ids: peerIds,
+					}),
+				);
+				peerIds.push(msg.peer_id);
+				return;
+			}
 		},
 		async close(ws) {
 			if (ws.data.stoken) {
@@ -449,3 +465,5 @@ const server = Bun.serve<ServerData>({
 		},
 	},
 });
+
+PeerServer({ port: 9000 });

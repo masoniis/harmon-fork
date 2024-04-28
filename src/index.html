@@ -34,6 +34,7 @@
 		<script src="js/htmx.min.js"></script>
 		<script src="js/ws.js"></script>
 		<script src="js/moment.js"></script>
+		<script src="js/peerjs.min.js"></script>
 
 		<script>
 			let socket;
@@ -42,8 +43,17 @@
 				return socket;
 			};
 
+			const getUserMedia =
+				navigator.getUserMedia ||
+				navigator.webkitGetUserMedia ||
+				navigator.mozGetUserMedia;
+
 			let stoken, username;
 			let editingUser = false;
+			let joinedVoice = false;
+			let peerIds = [];
+			let myPeerId;
+			let peer;
 
 			document.body.addEventListener("htmx:load", () => {
 				const chat = document.getElementById("chat_messages");
@@ -106,6 +116,25 @@
 					if (msg.new_banner_success) {
 						closeDialog("new_banner_dialog");
 					}
+					if (msg.peer_ids) {
+						getUserMedia(
+							{ audio: true, video: false },
+							(stream) => {
+								for (const id of msg.peer_ids) {
+									if (id === myPeerId) continue;
+									const call = peer.call(id, stream);
+									call.on("stream", (remoteStream) => {
+										const audio = document.createElement("audio");
+										audio.srcObject = remoteStream;
+										audio.autoplay = true;
+										document.body.appendChild(audio);
+										setJoinedVoice();
+									});
+								}
+							},
+							(err) => console.error(err),
+						);
+					}
 					return;
 				}
 
@@ -121,6 +150,56 @@
 					}
 				}
 			});
+
+			function setJoinedVoice() {
+				const btn = document.getElementById("rtc_voice_toggle");
+				joinedVoice = true;
+				btn.classList.remove("rtc_voice_toggle_on");
+				btn.classList.add("rtc_voice_toggle_off");
+				btn.innerHTML = "Leave Voice";
+			}
+
+			function toggleVoice() {
+				const btn = document.getElementById("rtc_voice_toggle");
+				if (!joinedVoice) {
+					peer = new Peer({
+						host: "/",
+						port: 9000,
+					});
+					peer.on("open", (id) => {
+						myPeerId = id;
+						socket.send(
+							JSON.stringify({
+								peer_id: id,
+								stoken,
+							}),
+						);
+					});
+					peer.on("call", (call) => {
+						getUserMedia(
+							{ audio: true, video: false },
+							(stream) => {
+								call.answer(stream);
+								call.on("stream", (remoteStream) => {
+									const audio = document.createElement("audio");
+									audio.srcObject = remoteStream;
+									audio.autoplay = true;
+									document.body.appendChild(audio);
+									setJoinedVoice();
+								});
+							},
+							(err) => console.error(err),
+						);
+					});
+				} else {
+					peer.destroy();
+
+					joinedVoice = false;
+					btn.classList.remove("rtc_voice_toggle_off");
+					btn.classList.add("rtc_voice_toggle_on");
+					btn.innerHTML = "Join Voice";
+				}
+			}
 
 			function editUser(attr, event) {
 				editingUser = true;
