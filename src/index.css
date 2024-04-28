@@ -11,7 +11,7 @@
 
 @media screen and (max-width: 600px) {
 	#nav_area {
-		visibility: collapse;
+		display: none !important;
 	}
 }
 
@@ -179,6 +179,7 @@ hr {
 
 p {
 	margin: 0;
+	overflow-x: hidden;
 }
 
 .user_presence_icon {
