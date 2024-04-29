@@ -83,7 +83,14 @@ function refreshUsers() {
 			}
 			return a.username.localeCompare(b.username);
 		})
-		.map((u) => User(u.username, u.presence, u.status, u.banner))
+		.map((u) =>
+			User(
+				u.username,
+				u.presence,
+				u.status,
+				u.presence !== "offline" ? u.banner : undefined,
+			),
+		)
 		.join("");
 	if (talking.length > 0) {
 		users += UserListSeparator("talking");
