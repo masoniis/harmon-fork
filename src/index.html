@@ -207,6 +207,7 @@
 							(err) => console.error(err),
 						);
 					});
+					peer.on("disconnected", peer.reconnect);
 				} else if (joinedVoice || joiningVoice) {
 					joiningVoice = false;
 					joinedVoice = false;

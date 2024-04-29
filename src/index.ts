@@ -193,6 +193,7 @@ interface ServerData {
 	username?: string;
 	banner?: string;
 	status?: string;
+	peerId?: string;
 }
 let connections: ServerWebSocket<ServerData>[] = [];
 let peerIds: string[] = [];
@@ -506,6 +507,7 @@ const server = Bun.serve<ServerData>({
 			if (msg.peer_id && msg.peer_id.length > 0) {
 				info(ws, `peer_id\t${msg.peer_id}`);
 				peerCount[ws.data.token] = (peerCount[ws.data.token] ?? 0) + 1;
+				ws.data.peerId = msg.peer_id;
 				ws.sendText(
 					JSON.stringify({
 						peer_ids: peerIds,
@@ -526,6 +528,7 @@ const server = Bun.serve<ServerData>({
 
 			if (msg.peer_leave && msg.peer_leave.length > 0) {
 				info(ws, `peer_leave\t${msg.peer_leave}`);
+				peerIds = peerIds.filter((id) => id !== ws.data.peerId);
 				peerIds = peerIds.filter((id) => id !== msg.peer_leave);
 				if (peerCount[ws.data.token]) {
 					if (peerCount[ws.data.token] === 1) {
@@ -555,6 +558,9 @@ const server = Bun.serve<ServerData>({
 				connections = connections.filter(
 					(c) => c.data.stoken !== ws.data.stoken,
 				);
+				if (ws.data.peerId) {
+					peerIds = peerIds.filter((id) => id !== ws.data.peerId);
+				}
 			}
 
 			if (ws.data.token) {
