@@ -1,25 +1,18 @@
-import { cwd } from "node:process";
-import { mkdir, unlink } from "node:fs/promises";
+import { mkdir, unlink, appendFile, readFile, exists } from "node:fs/promises";
+import constants from "./constants";
 
-type Table = "token" | "username" | "status" | "banner";
+const tables = ["token", "id", "username", "status", "banner"] as const;
+type Table = (typeof tables)[number];
 
-// Ensure data directories exist
+const chatFilePath = `${constants.dataDir}/chat`;
 
-const dataDir = process.env.DATA_DIR ?? `${cwd()}/data`;
-const dirs: Record<string, string> = {
-	token: process.env.TOKEN_DIR ?? `${dataDir}/token`,
-	username: process.env.USERNAME_DIR ?? `${dataDir}/username`,
-	status: process.env.STATUS_DIR ?? `${dataDir}/status`,
-	banner: process.env.BANNER_DIR ?? `${dataDir}/banner`,
-};
-
-await mkdir(dataDir, { recursive: true });
-for (const dir of Object.values(dirs)) {
-	await mkdir(dir, { recursive: true });
+await mkdir(constants.dataDir, { recursive: true });
+for (const table of tables) {
+	await mkdir(`${constants.dataDir}/${table}`, { recursive: true });
 }
 
 function loc(table: Table, key: string) {
-	return `${dirs[table]}/${key}`;
+	return `${constants.dataDir}/${table}/${key}`;
 }
 
 export default {
@@ -35,7 +28,28 @@ export default {
 		}
 	},
 
+	async readOrWriteNew(table: Table, key: string, value: string) {
+		const result = await this.read(table, key);
+		if (!result) {
+			await this.write(table, key, value);
+			return value;
+		}
+		return result;
+	},
+
 	async delete(table: Table, key: string) {
 		await unlink(loc(table, key));
+	},
+
+	chat: {
+		async read() {
+			return (await exists(chatFilePath))
+				? (await readFile(chatFilePath)).toString()
+				: "";
+		},
+
+		async append(text: string) {
+			return await appendFile(chatFilePath, text);
+		},
 	},
 };

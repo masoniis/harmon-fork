@@ -1,18 +1,28 @@
 import crypto from "node:crypto";
 import db from "./db";
+import constants from "./constants";
 
 const registeredTokens = new Set();
 const sessions: Record<string, string> = {};
 
-async function randomLoginToken() {
+function randomLoginToken() {
 	return crypto.randomBytes(48).toString("hex");
 }
 
-async function randomUsername() {
-	return `user${crypto.randomBytes(10).toString("hex")}`;
+function randomId() {
+	return crypto.randomBytes(8).toString("hex");
 }
 
-async function randomSessionToken(token: string) {
+function randomUsername() {
+	const randomLength =
+		constants.maxUsernameLength - constants.defaultUsernamePrefix.length;
+	return `${constants.defaultUsernamePrefix}${crypto
+		.randomBytes(randomLength / 2 + 1)
+		.toString("hex")
+		.substring(0, randomLength)}`;
+}
+
+function randomSessionToken(token: string) {
 	return Bun.hash(
 		`${token}${crypto.randomBytes(16).toString("hex")}`,
 	).toString();
@@ -23,7 +33,7 @@ export default {
 	 * Generate a new random login token and save it for registration.
 	 */
 	async register() {
-		const token = await randomLoginToken();
+		const token = randomLoginToken();
 		registeredTokens.add(token);
 		return token;
 	},
@@ -34,12 +44,13 @@ export default {
 	async login(token: string) {
 		if (!(await db.read("username", token))) {
 			if (!registeredTokens.has(token)) return;
-			const username = await randomUsername();
+			const username = randomUsername();
 			await db.write("token", username, token);
+			await db.write("id", token, randomId());
 			await db.write("username", token, username);
 			registeredTokens.delete(token);
 		}
-		const stoken = await randomSessionToken(token);
+		const stoken = randomSessionToken(token);
 		sessions[stoken] = token;
 		return stoken;
 	},
@@ -50,7 +61,7 @@ export default {
 	async nextSessionToken(stoken: string) {
 		if (!sessions[stoken]) return;
 		const token = sessions[stoken];
-		const nextStoken = await randomSessionToken(token);
+		const nextStoken = randomSessionToken(token);
 		sessions[nextStoken] = token;
 		delete sessions[stoken];
 		return nextStoken;

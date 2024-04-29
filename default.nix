@@ -40,7 +40,7 @@ in stdenv.mkDerivation {
     # bun is referenced naked in the package.json generated script
     makeBinaryWrapper ${bun}/bin/bun $out/bin/harmon \
       --prefix PATH : ${lib.makeBinPath [ bun ]} \
-      --add-flags "run --prefer-offline --no-install --cwd $out ./src/index.ts"
+      --add-flags "run --prefer-offline --no-install --cwd $out ./src/server.ts"
 
     runHook postInstall
   '';
