@@ -158,7 +158,7 @@ async function onMessage(
 	}
 
 	let stoken = msg.stoken;
-	if (!stoken) return;
+	if (!stoken) send(ws, { error: "REJECTED" });
 	const token = sessions.getLoginToken(msg.stoken);
 	if (!token) return;
 	stoken = await sessions.nextSessionToken(msg.stoken);
