@@ -75,8 +75,16 @@ addEventListener("load", () => {
 	}
 });
 
+let lastStoken;
+const queue = [];
+
 function send(data) {
-	ws.send(JSON.stringify({ stoken, ...data }));
+	if (lastStoken === stoken) {
+		queue.push(data);
+	} else {
+		lastStoken = stoken;
+		ws.send(JSON.stringify({ stoken, ...data }));
+	}
 }
 
 ws = new WebSocket(
@@ -111,6 +119,10 @@ ws.addEventListener("message", async (ev) => {
 			loaded = true;
 		}
 		stoken = msg.stoken;
+		if (queue.length) {
+			lastStoken = stoken;
+			ws.send(JSON.stringify({ stoken, ...queue.pop() }));
+		}
 	}
 
 	if (msg.userId) {
@@ -219,6 +231,7 @@ ws.addEventListener("message", async (ev) => {
 	}
 
 	if (msg.peerDisconnect) {
+		deletePeer(msg.peerDisconnect);
 	}
 });
 
@@ -289,6 +302,10 @@ function setupPeerAudioConnection(peer) {
 }
 
 function deletePeer(peer) {
+	if (!streams[peer]) {
+		console.error(`Cannot delete streams[peer], does not exist: ${peer}`);
+		return;
+	}
 	streams[peer].getTracks().forEach((track) => track.stop());
 	analysers[peer].disconnect();
 	RemoteAudio[peer].remove();

@@ -283,7 +283,7 @@ async function onMessage(
 		log(token, user, `join_voice\t${ws.data.peerId}`);
 	} else if (msg.action === "leave_voice") {
 		leaveVoice(ws, token, user);
-		log(token, user, `leave_voice\t${ws.data.peerId}`);
+		log(token, user, "leave_voice");
 	} else if (msg.action === "rtc_signal") {
 		if (!ws.data.peerId) return;
 		const { peer, data } = msg;
