@@ -302,20 +302,16 @@ function setupPeerAudioConnection(peer) {
 }
 
 function deletePeer(peer) {
-	if (!streams[peer]) {
-		console.error(`Cannot delete streams[peer], does not exist: ${peer}`);
-		return;
-	}
-	streams[peer].getTracks().forEach((track) => track.stop());
-	analysers[peer].disconnect();
-	RemoteAudio[peer].remove();
-	peers[peer].close();
+	if (streams[peer]) streams[peer].getTracks().forEach((track) => track.stop());
+	if (analysers[peer]) analysers[peer].disconnect();
+	if (RemoteAudio[peer]) RemoteAudio[peer].remove();
+	if (peers[peer]) peers[peer].close();
 
-	delete streams[peer];
-	delete analysers[peer];
-	delete RemoteAudio[peer];
-	delete peers[peer];
-	delete lastSpeakingChangeTime[peer];
+	if (streams[peer]) delete streams[peer];
+	if (analysers[peer]) delete analysers[peer];
+	if (RemoteAudio[peer]) delete RemoteAudio[peer];
+	if (peers[peer]) delete peers[peer];
+	if (lastSpeakingChangeTime[peer]) delete lastSpeakingChangeTime[peer];
 }
 
 /*
