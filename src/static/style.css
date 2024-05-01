@@ -428,3 +428,14 @@ li {
 	margin: 0;
 	line-height: 1em;
 }
+
+#users::-webkit-scrollbar,
+#messages::-webkit-scrollbar {
+	display: none;
+}
+
+#users,
+#messages {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
