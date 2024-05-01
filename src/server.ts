@@ -90,7 +90,7 @@ let sockets: Record<string, ServerWebSocket<SocketData>[]> = {};
 let peers: Record<string, ServerWebSocket<SocketData>> = {};
 
 function send(ws: ServerWebSocket<SocketData>, data: any) {
-	ws.sendText(JSON.stringify(data));
+	ws.sendText(JSON.stringify({ stoken: ws.data?.stoken, ...data }));
 }
 function sub(ws: ServerWebSocket<SocketData>) {
 	ws.subscribe("chat");
@@ -146,6 +146,25 @@ function leaveVoice(
 	}
 }
 
+function handleRtcSignal(
+	ws: ServerWebSocket<SocketData>,
+	msg: any,
+	token: string,
+	user: User,
+) {
+	if (!ws.data.peerId) return;
+	const { peer, data } = msg;
+	if (!data || !peer || !peers[peer]) return;
+	send(peers[peer], {
+		rtc_signal: { peer: ws.data.peerId, userId: ws.data.user.id, data },
+	});
+	log(
+		token,
+		user,
+		`rtc_signal\t${JSON.stringify({ from: ws.data.peerId, to: peer, data })}`,
+	);
+}
+
 async function onMessage(
 	ws: ServerWebSocket<SocketData>,
 	message: string | Buffer,
@@ -162,7 +181,6 @@ async function onMessage(
 	const token = sessions.getLoginToken(msg.stoken);
 	if (!token) return;
 	stoken = await sessions.nextSessionToken(msg.stoken);
-	send(ws, { stoken });
 
 	if (!ws.data) {
 		let user: User;
@@ -283,25 +301,21 @@ async function onMessage(
 		log(token, user, `join_voice\t${ws.data.peerId}`);
 	} else if (msg.action === "leave_voice") {
 		leaveVoice(ws, token, user);
+		send(ws, {});
 		log(token, user, `leave_voice\t${ws.data.peerId}`);
+	} else if (msg.action === "rtc_signals") {
+		for (const signal of msg.data) {
+			handleRtcSignal(ws, signal, token, user);
+		}
 	} else if (msg.action === "rtc_signal") {
-		if (!ws.data.peerId) return;
-		const { peer, data } = msg;
-		if (!data || !peer || !peers[peer]) return;
-		send(peers[peer], {
-			rtc_signal: { peer: ws.data.peerId, userId: ws.data.user.id, data },
-		});
-		log(
-			token,
-			user,
-			`rtc_signal\t${JSON.stringify({ from: ws.data.peerId, to: peer, data })}`,
-		);
+		handleRtcSignal(ws, msg, token, user);
 	} else if (msg.action === "edit_settings") {
 		let { settings } = msg.data;
 		if (!settings) return;
 		user.banner = settings.banner;
 		pub({ user });
 		await db.write("banner", token, settings.banner);
+		send(ws, {});
 		log(token, user, `edit_settings\t${JSON.stringify(settings)}`);
 	}
 }

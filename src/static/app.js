@@ -179,14 +179,16 @@ ws.addEventListener("message", async (ev) => {
 	}
 
 	if (msg.peers) {
+		const signals = [];
 		for (const { peer, userId } of msg.peers) {
 			peerUserIds[peer] = userId;
 			peers[peer] = new RTCPeerConnection({ iceServers });
 			setupPeerAudioConnection(peer);
 			const offer = await peers[peer].createOffer();
 			await peers[peer].setLocalDescription(offer);
-			send({ action: "rtc_signal", peer, data: { offer } });
+			signals.push({ peer, data: { offer } });
 		}
+		send({ action: "rtc_signals", data: signals });
 
 		voice = "joined";
 		VoiceToggle.classList.remove("voice_toggle_joining");
@@ -219,6 +221,7 @@ ws.addEventListener("message", async (ev) => {
 	}
 
 	if (msg.peerDisconnect) {
+		deletePeer(msg.peerDisconnect);
 	}
 });
 
@@ -289,6 +292,10 @@ function setupPeerAudioConnection(peer) {
 }
 
 function deletePeer(peer) {
+	if (!streams[peer]) {
+		console.error(`Failed to delete peer: ${peer}`);
+		return;
+	}
 	streams[peer].getTracks().forEach((track) => track.stop());
 	analysers[peer].disconnect();
 	RemoteAudio[peer].remove();
