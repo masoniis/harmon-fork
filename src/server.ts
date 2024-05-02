@@ -161,8 +161,9 @@ async function onMessage(
 	if (!stoken) send(ws, { error: "REJECTED" });
 	const token = sessions.getLoginToken(msg.stoken);
 	if (!token) return;
-	stoken = await sessions.nextSessionToken(msg.stoken);
-	send(ws, { stoken });
+	// TODO: Implement a better system for rotating stokens
+	// stoken = await sessions.nextSessionToken(msg.stoken);
+	// send(ws, { stoken });
 
 	if (!ws.data) {
 		let user: User;
@@ -178,7 +179,7 @@ async function onMessage(
 				banner: await db.readOrWriteNew("banner", token, ""),
 			};
 		}
-		send(ws, { userId: user.id });
+		send(ws, { myUserId: user.id });
 		ws.data = { token, stoken, user };
 		sockets[token] = sockets[token] ? [...sockets[token], ws] : [ws];
 		setActive(user);
@@ -271,12 +272,14 @@ async function onMessage(
 	} else if (msg.action === "join_voice") {
 		if (ws.data.peerId) return;
 		ws.data.peerId = crypto.randomBytes(8).toString("hex");
-		send(ws, {
-			peers: Object.entries(peers).map(([peer, ws]) => ({
-				peer,
-				userId: ws.data.user.id,
-			})),
-		});
+		send(ws, { myPeerId: ws.data.peerId });
+		// send(ws, {
+		// 	peers: Object.entries(peers).map(([peer, ws]) => ({
+		// 		peer,
+		// 		userId: ws.data.user.id,
+		// 	})),
+		// });
+		pub({ peer: ws.data.peerId, userId: ws.data.user.id });
 		peers[ws.data.peerId] = ws;
 		user.stats.in_call = true;
 		pub({ user });

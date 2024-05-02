@@ -1,14 +1,7 @@
-let loaded = false;
 let voice = false;
 let ws, stoken, myUserId, users, audioStream, iceServers, mediaTrackConstraints;
 
-// TODO: unify this into one data structure
 let peers = {};
-let streams = {};
-let analysers = {};
-let RemoteAudio = {};
-let peerUserIds = {};
-let lastSpeakingChangeTime = {};
 
 const SessionToken = document.querySelector("#session_token");
 stoken = SessionToken.value;
@@ -75,16 +68,8 @@ addEventListener("load", () => {
 	}
 });
 
-let lastStoken;
-const queue = [];
-
 function send(data) {
-	if (lastStoken === stoken) {
-		queue.push(data);
-	} else {
-		lastStoken = stoken;
-		ws.send(JSON.stringify({ stoken, ...data }));
-	}
+	ws.send(JSON.stringify({ stoken, ...data }));
 }
 
 ws = new WebSocket(
@@ -109,24 +94,8 @@ ws.addEventListener("message", async (ev) => {
 	}
 	console.log(msg);
 
-	if (msg.stoken) {
-		VoiceToggle.disabled = false;
-		MessageEditorSend.disabled = false;
-		MessageEditorContent.disabled = false;
-		if (!loaded) {
-			MessageEditorContent.focus();
-			Messages.scrollTop = Messages.scrollHeight;
-			loaded = true;
-		}
-		stoken = msg.stoken;
-		if (queue.length) {
-			lastStoken = stoken;
-			ws.send(JSON.stringify({ stoken, ...queue.pop() }));
-		}
-	}
-
-	if (msg.userId) {
-		myUserId = msg.userId;
+	if (msg.myUserId) {
+		myUserId = msg.myUserId;
 	}
 
 	if (msg.iceServers) {
@@ -190,40 +159,41 @@ ws.addEventListener("message", async (ev) => {
 		displayUsers();
 	}
 
-	if (msg.peers) {
-		for (const { peer, userId } of msg.peers) {
-			peerUserIds[peer] = userId;
-			peers[peer] = new RTCPeerConnection({ iceServers });
+	if (msg.peer) {
+		if (msg.userId === myUserId) {
+			voice = "joined";
+			VoiceToggle.classList.remove("voice_toggle_joining");
+			VoiceToggle.classList.add("voice_toggle_leave");
+			VoiceToggle.textContent = "Leave Voice";
+		} else if (voice === "joined") {
+			const { peer, userId } = msg;
+			const conn = new RTCPeerConnection({ iceServers });
+			peers[peer] = { userId, conn };
 			setupPeerAudioConnection(peer);
-			const offer = await peers[peer].createOffer();
-			await peers[peer].setLocalDescription(offer);
+			const offer = await conn.createOffer();
+			await conn.setLocalDescription(offer);
 			send({ action: "rtc_signal", peer, data: { offer } });
 		}
-
-		voice = "joined";
-		VoiceToggle.classList.remove("voice_toggle_joining");
-		VoiceToggle.classList.add("voice_toggle_leave");
-		VoiceToggle.textContent = "Leave Voice";
 	}
 
 	if (msg.rtc_signal) {
 		const { peer, userId, data } = msg.rtc_signal;
 		if (data.offer) {
-			peerUserIds[peer] = userId;
-			peers[peer] = new RTCPeerConnection({ iceServers });
+			const conn = new RTCPeerConnection({ iceServers });
+			peers[peer] = { userId, conn };
 			setupPeerAudioConnection(peer);
-			peers[peer].setRemoteDescription(new RTCSessionDescription(data.offer));
-			const answer = await peers[peer].createAnswer();
-			await peers[peer].setLocalDescription(answer);
+			conn.setRemoteDescription(new RTCSessionDescription(data.offer));
+			const answer = await conn.createAnswer();
+			await conn.setLocalDescription(answer);
 			send({ action: "rtc_signal", peer, data: { answer } });
 		}
 		if (data.answer) {
 			const remoteDesc = new RTCSessionDescription(data.answer);
-			await peers[peer].setRemoteDescription(remoteDesc);
+			await peers[peer].conn.setRemoteDescription(remoteDesc);
 		}
 		if (data.iceCandidate) {
 			try {
-				await peers[peer].addIceCandidate(data.iceCandidate);
+				await peers[peer].conn.addIceCandidate(data.iceCandidate);
 			} catch (e) {
 				console.error("Error adding received ice candidate", e);
 			}
@@ -239,18 +209,24 @@ ws.addEventListener("message", async (ev) => {
  * rtc audio functions
  */
 function setSpeaking(peer, speaking) {
-	const lastTime = lastSpeakingChangeTime[peer];
-	if (speaking || !lastTime || moment().diff(lastTime, "millisecond") > 100) {
-		lastSpeakingChangeTime[peer] = moment();
-		const userId = peer === "me" ? myUserId : peerUserIds[peer];
+	if (!peers[peer]) return false;
+	const { lastSpeaking } = peers[peer];
+	if (
+		speaking ||
+		!lastSpeaking ||
+		moment().diff(lastSpeaking, "millisecond") > 200
+	) {
+		peers[peer].lastSpeaking = moment();
+		const userId = peer === "me" ? myUserId : peers[peer].userId;
 		const TargetUser = document.querySelector(`#user_${userId}`);
-		if (!TargetUser) return;
+		if (!TargetUser) return false;
 		if (speaking) {
 			TargetUser.classList.add("speaking");
 		} else {
 			TargetUser.classList.remove("speaking");
 		}
 	}
+	return true;
 }
 
 function processAudioStream(peer, stream) {
@@ -261,23 +237,27 @@ function processAudioStream(peer, stream) {
 	source.connect(analyser);
 	const len = analyser.frequencyBinCount;
 	const buf = new Uint8Array(len);
+	if (!peers[peer]) peers[peer] = {};
 	function detectSpeaker() {
 		analyser.getByteFrequencyData(buf);
 		const avgVolume = buf.reduce((acc, cur) => acc + cur, 0) / len;
-		setSpeaking(peer, avgVolume > 35);
-		requestAnimationFrame(detectSpeaker);
+		if (setSpeaking(peer, avgVolume > 35)) {
+			requestAnimationFrame(detectSpeaker);
+		}
 	}
 	detectSpeaker();
-	streams[peer] = stream;
-	analysers[peer] = analyser;
+	peers[peer].stream = stream;
+	peers[peer].analyser = analyser;
 }
 
 function setupPeerAudioConnection(peer) {
-	RemoteAudio[peer] = new Audio();
-	RemoteAudio[peer].id = `audio_${peer}`;
-	RemoteAudio[peer].autoplay = true;
-	document.body.appendChild(RemoteAudio[peer]);
-	peers[peer].addEventListener("icecandidate", (event) => {
+	const RemoteAudio = new Audio();
+	RemoteAudio.id = `audio_${peer}`;
+	RemoteAudio.autoplay = true;
+	document.body.appendChild(RemoteAudio);
+	peers[peer].RemoteAudio = RemoteAudio;
+	const { conn } = peers[peer];
+	conn.addEventListener("icecandidate", (event) => {
 		if (event.candidate) {
 			send({
 				action: "rtc_signal",
@@ -286,32 +266,28 @@ function setupPeerAudioConnection(peer) {
 			});
 		}
 	});
-	peers[peer].addEventListener("connectionstatechange", () => {
-		if (peers[peer].connectionState === "connected") {
+	conn.addEventListener("connectionstatechange", () => {
+		if (conn.connectionState === "connected") {
 			console.log(`Connected to peer: ${peer}`);
 		}
 	});
-	peers[peer].addEventListener("track", async (event) => {
+	conn.addEventListener("track", async (event) => {
 		const [remoteStream] = event.streams;
-		RemoteAudio[peer].srcObject = remoteStream;
+		RemoteAudio.srcObject = remoteStream;
 		processAudioStream(peer, remoteStream);
 	});
-	audioStream
-		.getTracks()
-		.forEach((track) => peers[peer].addTrack(track, audioStream));
+	audioStream.getTracks().forEach((track) => conn.addTrack(track, audioStream));
 }
 
 function deletePeer(peer) {
-	if (streams[peer]) streams[peer].getTracks().forEach((track) => track.stop());
-	if (analysers[peer]) analysers[peer].disconnect();
-	if (RemoteAudio[peer]) RemoteAudio[peer].remove();
-	if (peers[peer]) peers[peer].close();
-
-	if (streams[peer]) delete streams[peer];
-	if (analysers[peer]) delete analysers[peer];
-	if (RemoteAudio[peer]) delete RemoteAudio[peer];
-	if (peers[peer]) delete peers[peer];
-	if (lastSpeakingChangeTime[peer]) delete lastSpeakingChangeTime[peer];
+	if (peers[peer]) {
+		const { stream, analyser, RemoteAudio, conn } = peers[peer];
+		if (stream) stream.getTracks().forEach((track) => track.stop());
+		if (analyser) analyser.disconnect();
+		if (RemoteAudio) RemoteAudio.remove();
+		if (conn) conn.close();
+		delete peers[peer];
+	}
 }
 
 /*

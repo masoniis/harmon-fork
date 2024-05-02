@@ -19,7 +19,7 @@ export default function AppPage(stoken: string, messages: string) {
 					</span>
 				</div>
 			</template>
-			<button id="voice_toggle" class="voice_toggle_on" disabled>
+			<button id="voice_toggle" class="voice_toggle_on">
 				Join Voice
 			</button>
 			<div id="me">
@@ -53,9 +53,8 @@ export default function AppPage(stoken: string, messages: string) {
 				<textarea
 					id="message_editor_content"
 					name="message_editor_content"
-					disabled
 				></textarea>
-				<button id="message_editor_send" disabled>Send</button>
+				<button id="message_editor_send">Send</button>
 			</div>
 		</main>
 		<dialog id="settings">
