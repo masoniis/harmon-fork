@@ -309,11 +309,19 @@ function setSpeaking(peer, speaking) {
 }
 
 function processAudioStream(peer, stream) {
-	const context = new AudioContext();
 	if (!peers[peer]) peers[peer] = {};
+
+	const RemoteAudioPre = new Audio();
+	RemoteAudioPre.id = `audio_pre_${peer}`;
+	RemoteAudioPre.autoplay = true;
+	RemoteAudioPre.volume = false;
+	RemoteAudioPre.srcObject = stream;
+	peers[peer].RemoteAudioPre = RemoteAudioPre;
+
+	const context = new AudioContext();
 	peers[peer].context = context;
-	const source = context.createMediaStreamSource(stream);
-	const dest = context.createMediaStreamDestination(stream);
+	const source = context.createMediaStreamSource(RemoteAudioPre.srcObject);
+	const dest = context.createMediaStreamDestination();
 	const analyser = context.createAnalyser();
 	analyser.fftSize = 128;
 	source.connect(analyser);
@@ -330,19 +338,19 @@ function processAudioStream(peer, stream) {
 	peers[peer].stream = stream;
 	peers[peer].analyser = analyser;
 
-	const gainNode = context.createGain();
-	gainNode.gain.value = 1;
-	if (settings) {
-		const { userGain } = settings;
-		const userId = peers[peer].userId;
-		if (userGain && userGain[userId]) {
-			gainNode.gain.value = userGain[userId];
-		}
-	}
-	source.connect(gainNode).connect(dest);
-	peers[peer].gainNode = gainNode;
-
 	if (peer !== "me") {
+		const gainNode = context.createGain();
+		gainNode.gain.value = 1;
+		if (settings) {
+			const { userGain } = settings;
+			const userId = peers[peer].userId;
+			if (userGain && userGain[userId]) {
+				gainNode.gain.value = userGain[userId];
+			}
+		}
+		source.connect(gainNode).connect(context.destination);
+		peers[peer].gainNode = gainNode;
+
 		const VolumeSlider = document
 			.querySelector(`#user_${peers[peer].userId}`)
 			.querySelector(".volume_slider");
@@ -354,7 +362,7 @@ function processAudioStream(peer, stream) {
 		document.body.appendChild(RemoteAudio);
 		peers[peer].RemoteAudio = RemoteAudio;
 
-		RemoteAudio.srcObject = dest.stream;
+		RemoteAudio.srcObject = dest;
 	}
 }
 
@@ -386,10 +394,21 @@ function setupPeerAudioConnection(peer) {
 
 function deletePeer(peer) {
 	if (peers[peer]) {
-		const { stream, analyser, RemoteAudio, conn } = peers[peer];
+		const {
+			stream,
+			analyser,
+			RemoteAudio,
+			RemoteAudioPre,
+			conn,
+			gainNode,
+			context,
+		} = peers[peer];
 		if (stream) stream.getTracks().forEach((track) => track.stop());
 		if (analyser) analyser.disconnect();
+		if (gainNode) gainNode.disconnect();
 		if (RemoteAudio) RemoteAudio.remove();
+		if (RemoteAudioPre) RemoteAudioPre.remove();
+		if (context) context.close();
 		if (conn) conn.close();
 		delete peers[peer];
 	}
@@ -472,11 +491,7 @@ function User(user) {
 	VolumeSlider.addEventListener("change", () => {
 		for (const peer in peers) {
 			if (peers[peer].userId === id && peers[peer].gainNode) {
-				peers[peer].gainNode.gain.setTargetAtTime(
-					VolumeSlider.value,
-					peers[peer].context.currentTime,
-					0.15,
-				);
+				peers[peer].gainNode.gain.value = VolumeSlider.value;
 				const userGain = settings.userGain;
 				userGain[id] = VolumeSlider.value;
 				send({
