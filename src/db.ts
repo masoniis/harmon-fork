@@ -1,7 +1,14 @@
 import { mkdir, unlink, appendFile, readFile, exists } from "node:fs/promises";
 import constants from "./constants";
 
-const tables = ["token", "id", "username", "status", "banner"] as const;
+const tables = [
+	"token",
+	"id",
+	"username",
+	"status",
+	"banner",
+	"settings",
+] as const;
 type Table = (typeof tables)[number];
 
 const chatFilePath = `${constants.dataDir}/chat`;

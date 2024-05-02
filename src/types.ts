@@ -17,6 +17,12 @@ export interface User {
 	lastActive: Moment;
 	status: string;
 	banner: string;
+	settings: UserSettings;
+}
+
+export interface UserSettings {
+	banner: string;
+	chimes: boolean;
 }
 
 export interface SocketData {

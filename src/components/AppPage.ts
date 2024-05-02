@@ -68,6 +68,10 @@ export default function AppPage(
 					<label for="banner_url">Banner URL</label>
 					<input id="banner_url" type="text" />
 				</div>
+				<div class="settings_row">
+					<label for="chimes_toggle">Play chime on new messages </label>
+					<input id="chimes_toggle" type="checkbox" />
+				</div>
 			</div>
 		</dialog>
 		<input

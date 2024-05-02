@@ -1,5 +1,6 @@
 import type { unitOfTime } from "moment";
 import { cwd } from "node:process";
+import type { UserSettings } from "./types";
 
 function ife<T>(e: string | undefined, f: (v: string) => T, v: T) {
 	return e ? f(e) : v;
@@ -24,4 +25,12 @@ export default {
 			urls: "stun:stun.l.google.com:19302",
 		},
 	]),
+	defaultUserSettings: ife(
+		process.env.DEFAULT_USER_SETTINGS,
+		(s) => JSON.parse(s) as UserSettings,
+		{
+			banner: "",
+			chimes: true,
+		} as UserSettings,
+	),
 };

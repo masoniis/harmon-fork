@@ -38,7 +38,7 @@ router
 		if (token) {
 			const stoken = await sessions.login(token);
 			if (stoken) {
-				const username = await db.read("username", token);
+				const username = (await db.read("username", token)) ?? "";
 				const messages = await db.chat.read();
 				return AppPage(stoken, username, messages).replaceAll(/\t/g, "");
 			}
@@ -49,7 +49,7 @@ router
 		const token = await sessions.register();
 		return LoginPage(false, token);
 	})
-	.all("/:path", ({ path }) => {
+	.all("/:path+", ({ path }) => {
 		return new Response(Bun.file(`${import.meta.dir}/static/${path}`));
 	})
 	.all("*", () => ittyError(404));
@@ -178,9 +178,17 @@ async function onMessage(
 				lastActive: moment(),
 				status: await db.readOrWriteNew("status", token, "active"),
 				banner: await db.readOrWriteNew("banner", token, ""),
+				settings: JSON.parse(
+					await db.readOrWriteNew(
+						"settings",
+						token,
+						JSON.stringify(constants.defaultUserSettings),
+					),
+				),
 			};
 		}
 		send(ws, { myUserId: user.id });
+		send(ws, { settings: user.settings });
 		ws.data = { token, stoken, user };
 		sockets[token] = sockets[token] ? [...sockets[token], ws] : [ws];
 		setActive(user);
@@ -280,7 +288,8 @@ async function onMessage(
 		// 		userId: ws.data.user.id,
 		// 	})),
 		// });
-		pub({ peer: ws.data.peerId, userId: ws.data.user.id });
+		const ring = !Object.keys(peers).length;
+		pub({ peer: ws.data.peerId, userId: ws.data.user.id, ring });
 		peers[ws.data.peerId] = ws;
 		user.stats.in_call = true;
 		pub({ user });
@@ -306,6 +315,8 @@ async function onMessage(
 		user.banner = settings.banner;
 		pub({ user });
 		await db.write("banner", token, settings.banner);
+		await db.write("settings", token, JSON.stringify(settings));
+		send(ws, { settings });
 		log(token, user, `edit_settings\t${JSON.stringify(settings)}`);
 	}
 }

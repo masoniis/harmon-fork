@@ -402,7 +402,7 @@ dialog {
 	align-items: center;
 }
 
-.settings_row > input {
+.settings_row > input[type="text"] {
 	flex-grow: 1;
 }
 

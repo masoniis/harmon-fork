@@ -24,6 +24,7 @@ const VoiceToggle = document.querySelector("#voice_toggle");
 const Settings = document.querySelector("#settings");
 const SettingsContent = document.querySelector("#settings_content");
 const BannerUrl = document.querySelector("#banner_url");
+const ChimesToggle = document.querySelector("#chimes_toggle");
 
 const tsFormatOtherYear = "D MMM Y [at] h:mm a";
 const tsFormat = "D MMM [at] h:mm a";
@@ -111,6 +112,11 @@ ws.addEventListener("message", async (ev) => {
 		mediaTrackConstraints = msg.mediaTrackConstraints;
 	}
 
+	if (msg.settings) {
+		const { chimes } = msg.settings;
+		ChimesToggle.checked = chimes;
+	}
+
 	if (msg.newMessage) {
 		const isScrolledToBottom =
 			Messages.scrollHeight - Messages.clientHeight <= Messages.scrollTop + 1;
@@ -130,6 +136,14 @@ ws.addEventListener("message", async (ev) => {
 		if (MessageContents.length) {
 			const MessageContent = MessageContents[MessageContents.length - 1];
 			if (MessageContent) msgContentObserver.observe(MessageContent);
+		}
+
+		if (ChimesToggle.checked) {
+			const randomInt = 1 + Math.floor(Math.random() * 5);
+			const chimeFile = `/sounds/chime${randomInt}.flac`;
+			const chimeAudio = new Audio(chimeFile);
+			chimeAudio.volume = 0.9;
+			chimeAudio.play();
 		}
 	}
 
@@ -508,6 +522,7 @@ Settings.addEventListener("close", () => {
 		data: {
 			settings: {
 				banner: BannerUrl.value,
+				chimes: ChimesToggle.checked,
 			},
 		},
 	});
