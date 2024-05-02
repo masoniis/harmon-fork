@@ -51,7 +51,12 @@ const msgContentObserver = new IntersectionObserver((entries, observer) => {
 	entries.forEach((entry) => {
 		const { intersectionRatio, target } = entry;
 		if (intersectionRatio > 0) {
-			if (target.textContent.includes(`@${MyUsername.textContent}`)) {
+			const u = MyUsername.textContent;
+			const mentionRegex = new RegExp(
+				`^@${u}$|^@${u}\\s+.*$|^.*\\s+@${u}\\s+.*|^.*\\s+@${u}$`,
+				"sg",
+			);
+			if (mentionRegex.test(target.textContent)) {
 				target.classList.add("mentioned");
 				observer.disconnect();
 			}
