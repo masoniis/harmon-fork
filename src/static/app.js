@@ -125,8 +125,8 @@ ws.addEventListener("message", async (ev) => {
 	if (msg.settings) {
 		const { chimes, customCss, notifs } = msg.settings;
 		ChimesToggle.checked = chimes;
-		CustomCss.value = customCss;
-		Style.innerHTML = customCss;
+		CustomCss.value = customCss ? customCss : "";
+		Style.innerHTML = customCss ? customCss : "";
 		NotifsToggle.checked = notifs;
 	}
 
