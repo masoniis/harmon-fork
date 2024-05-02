@@ -39,6 +39,21 @@ const VoiceDecline = document.querySelector("#voice_decline");
 
 let RingtoneAudio;
 
+const MessageEditorQuill = new Quill("#message_editor_content", {
+	theme: "bubble",
+	modules: {
+		toolbar: false, // TODO: Get this to work without weird overflow issues and more, allows for cool selecting of text to add bold, italic, etc.
+	},
+});
+
+MessageEditorQuill.root.addEventListener("focus", () => {
+	MessageEditorContent.classList.add("focused");
+});
+
+MessageEditorQuill.root.addEventListener("blur", () => {
+	MessageEditorContent.classList.remove("focused");
+});
+
 const Style = document.createElement("style");
 document.head.appendChild(Style);
 
@@ -536,11 +551,12 @@ function displayUsers() {
 function newMessage() {
 	send({
 		action: "new_message",
-		data: { content: MessageEditorContent.value },
+		data: { content: MessageEditorQuill.getText() },
 	});
-	MessageEditorContent.value = "";
-	MessageEditorContent.focus();
+
+	MessageEditorQuill.setContents([]);
 }
+
 MessageEditorContent.addEventListener("keydown", (ev) => {
 	if (ev.keyCode === 13 && !ev.shiftKey) {
 		ev.preventDefault();
