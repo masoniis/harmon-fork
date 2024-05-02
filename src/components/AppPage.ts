@@ -69,8 +69,12 @@ export default function AppPage(
 					<input id="banner_url" type="text" />
 				</div>
 				<div class="settings_row">
-					<label for="chimes_toggle">Play chime on new messages </label>
+					<label for="chimes_toggle">Play chime on new messages</label>
 					<input id="chimes_toggle" type="checkbox" />
+				</div>
+				<div class="settings_row">
+					<label for="custom_css">Enter your custom CSS theme here:</label>
+					<textarea id="custom_css" type="text" rows="5"></textarea>
 				</div>
 			</div>
 		</dialog>

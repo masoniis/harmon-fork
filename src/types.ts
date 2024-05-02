@@ -23,6 +23,7 @@ export interface User {
 export interface UserSettings {
 	banner: string;
 	chimes: boolean;
+	customCss: string;
 }
 
 export interface SocketData {

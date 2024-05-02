@@ -25,6 +25,10 @@ const Settings = document.querySelector("#settings");
 const SettingsContent = document.querySelector("#settings_content");
 const BannerUrl = document.querySelector("#banner_url");
 const ChimesToggle = document.querySelector("#chimes_toggle");
+const CustomCss = document.querySelector("#custom_css");
+
+const Style = document.createElement("style");
+document.head.appendChild(Style);
 
 const tsFormatOtherYear = "D MMM Y [at] h:mm a";
 const tsFormat = "D MMM [at] h:mm a";
@@ -113,8 +117,10 @@ ws.addEventListener("message", async (ev) => {
 	}
 
 	if (msg.settings) {
-		const { chimes } = msg.settings;
+		const { chimes, customCss } = msg.settings;
 		ChimesToggle.checked = chimes;
+		CustomCss.value = customCss;
+		Style.innerHTML = customCss;
 	}
 
 	if (msg.newMessage) {
@@ -523,6 +529,7 @@ Settings.addEventListener("close", () => {
 			settings: {
 				banner: BannerUrl.value,
 				chimes: ChimesToggle.checked,
+				customCss: CustomCss.value,
 			},
 		},
 	});

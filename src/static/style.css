@@ -402,7 +402,8 @@ dialog {
 	align-items: center;
 }
 
-.settings_row > input[type="text"] {
+.settings_row > input[type="text"],
+.settings_row > textarea {
 	flex-grow: 1;
 }
 
