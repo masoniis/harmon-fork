@@ -188,6 +188,7 @@ async function onMessage(
 				),
 			};
 		}
+		user.settings.userGain ??= {};
 		send(ws, { myUserId: user.id });
 		send(ws, { settings: user.settings });
 		ws.data = { token, stoken, user };
@@ -319,10 +320,10 @@ async function onMessage(
 	} else if (msg.action === "edit_settings") {
 		let { settings } = msg.data;
 		if (!settings) return;
-		user.banner = settings.banner;
-		user.settings = settings;
+		user.banner = settings.banner || user.banner;
+		user.settings = { ...user.settings, ...settings };
 		pub({ user });
-		await db.write("banner", token, settings.banner);
+		await db.write("banner", token, user.banner);
 		await db.write("settings", token, JSON.stringify(settings));
 		send(ws, { settings });
 		log(token, user, `edit_settings\t${JSON.stringify(settings)}`);

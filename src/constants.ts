@@ -32,6 +32,7 @@ export default {
 			banner: "",
 			chimes: true,
 			notifs: false,
+			userGain: {},
 		} as UserSettings,
 	),
 };
