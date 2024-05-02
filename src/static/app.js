@@ -1,5 +1,12 @@
 let voice = false;
-let ws, stoken, myUserId, users, audioStream, iceServers, mediaTrackConstraints;
+let ws,
+	stoken,
+	myUserId,
+	users,
+	audioStream,
+	iceServers,
+	mediaTrackConstraints,
+	settings;
 let focused = true;
 
 let peers = {};
@@ -124,6 +131,7 @@ ws.addEventListener("message", async (ev) => {
 	}
 
 	if (msg.settings) {
+		settings = msg.settings;
 		const { chimes, customCss, notifs } = msg.settings;
 		ChimesToggle.checked = chimes;
 		CustomCss.value = customCss ? customCss : "";
@@ -287,13 +295,15 @@ function setSpeaking(peer, speaking) {
 
 function processAudioStream(peer, stream) {
 	const context = new AudioContext();
+	if (!peers[peer]) peers[peer] = {};
+	peers[peer].context = context;
 	const source = context.createMediaStreamSource(stream);
+	const dest = context.createMediaStreamDestination(stream);
 	const analyser = context.createAnalyser();
 	analyser.fftSize = 128;
 	source.connect(analyser);
 	const len = analyser.frequencyBinCount;
 	const buf = new Uint8Array(len);
-	if (!peers[peer]) peers[peer] = {};
 	function detectSpeaker() {
 		analyser.getByteFrequencyData(buf);
 		const avgVolume = buf.reduce((acc, cur) => acc + cur, 0) / len;
@@ -304,14 +314,36 @@ function processAudioStream(peer, stream) {
 	detectSpeaker();
 	peers[peer].stream = stream;
 	peers[peer].analyser = analyser;
+
+	const gainNode = context.createGain();
+	gainNode.gain.value = 1;
+	if (settings) {
+		const { userGain } = settings;
+		const userId = peers[peer].userId;
+		if (userGain && userGain[userId]) {
+			gainNode.gain.value = userGain[userId];
+		}
+	}
+	source.connect(gainNode).connect(dest);
+	peers[peer].gainNode = gainNode;
+
+	if (peer !== "me") {
+		const VolumeSlider = document
+			.querySelector(`#user_${peers[peer].userId}`)
+			.querySelector(".volume_slider");
+		VolumeSlider.hidden = false;
+
+		const RemoteAudio = new Audio();
+		RemoteAudio.id = `audio_${peer}`;
+		RemoteAudio.autoplay = true;
+		document.body.appendChild(RemoteAudio);
+		peers[peer].RemoteAudio = RemoteAudio;
+
+		RemoteAudio.srcObject = dest.stream;
+	}
 }
 
 function setupPeerAudioConnection(peer) {
-	const RemoteAudio = new Audio();
-	RemoteAudio.id = `audio_${peer}`;
-	RemoteAudio.autoplay = true;
-	document.body.appendChild(RemoteAudio);
-	peers[peer].RemoteAudio = RemoteAudio;
 	const { conn } = peers[peer];
 	conn.addEventListener("icecandidate", (event) => {
 		if (event.candidate) {
@@ -329,7 +361,6 @@ function setupPeerAudioConnection(peer) {
 	});
 	conn.addEventListener("track", async (event) => {
 		const [remoteStream] = event.streams;
-		RemoteAudio.srcObject = remoteStream;
 		processAudioStream(peer, remoteStream);
 		const joinFile = "/sounds/join.flac";
 		const joinAudio = new Audio(joinFile);
@@ -388,12 +419,12 @@ function UserGroup(title) {
 }
 
 function User(user) {
-	const { username, stats, status } = user;
+	const { username, stats, status, id, banner } = user;
 	const UserTemplate = document
 		.querySelector("#user_template")
 		.content.cloneNode(true);
 
-	UserTemplate.querySelector(".user").id = `user_${user.id}`;
+	UserTemplate.querySelector(".user").id = `user_${id}`;
 	UserTemplate.querySelector(".username").textContent = username;
 
 	const Status = UserTemplate.querySelector(".status");
@@ -406,9 +437,47 @@ function User(user) {
 	setPresenceClasses(UserTemplate.querySelector(".presence"), stats);
 
 	UserTemplate.querySelector(".user").style.background =
-		!stats.offline && user.banner
-			? `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.45)), url('${user.banner}')`
+		!stats.offline && banner
+			? `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.45)), url('${banner}')`
 			: "";
+
+	const VolumeSlider = UserTemplate.querySelector(".volume_slider");
+	VolumeSlider.value =
+		settings && settings.userGain && settings.userGain[id]
+			? settings.userGain[id]
+			: 1;
+	let inVoice = false;
+	for (const peer in peers) {
+		if (peers[peer].userId === id) {
+			inVoice = true;
+			break;
+		}
+	}
+	VolumeSlider.hidden = voice !== "joined" || id === myUserId || !inVoice;
+	VolumeSlider.addEventListener("change", () => {
+		for (const peer in peers) {
+			if (peers[peer].userId === id && peers[peer].gainNode) {
+				peers[peer].gainNode.gain.setTargetAtTime(
+					VolumeSlider.value,
+					peers[peer].context.currentTime,
+					0.15,
+				);
+				const userGain = settings.userGain;
+				userGain[id] = VolumeSlider.value;
+				send({
+					action: "edit_settings",
+					data: {
+						settings: {
+							userGain: {
+								...settings.userGain,
+								...userGain,
+							},
+						},
+					},
+				});
+			}
+		}
+	});
 
 	return UserTemplate;
 }

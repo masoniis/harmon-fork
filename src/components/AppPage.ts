@@ -16,14 +16,34 @@ export default function AppPage(
 			</template>
 			<template id="user_template">
 				<div class="user">
-					<span class="presence"></span>
-					<span class="username_status">
-						<strong class="username">${username}</strong>
-						<span class="status"></span>
-					</span>
+					<div class="user_details">
+						<span class="presence"></span>
+						<span class="username_status">
+							<strong class="username">${username}</strong>
+							<span class="status"></span>
+						</span>
+					</div>
+					<input
+						class="volume_slider"
+						type="range"
+						min="0"
+						max="1.5"
+						step="any"
+						list="volume_notches"
+						hidden
+					/>
 				</div>
 			</template>
-			<button id="voice_decline" class="voice_button voice_toggle_decline" hidden>
+			<datalist id="volume_notches">
+				<option value="0"></option>
+				<option value="1"></option>
+				<option value="1.5"></option>
+			</datalist>
+			<button
+				id="voice_decline"
+				class="voice_button voice_toggle_decline"
+				hidden
+			>
 				Decline
 			</button>
 			<button id="voice_toggle" class="voice_button voice_toggle_on">

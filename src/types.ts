@@ -25,6 +25,9 @@ export interface UserSettings {
 	chimes: boolean;
 	customCss: string;
 	notifs: boolean;
+	userGain: {
+		[userId: string]: number;
+	};
 }
 
 export interface SocketData {

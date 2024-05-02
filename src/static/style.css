@@ -6,6 +6,8 @@
 	--text-dim-color: #808082;
 	--text-color: #e6e6e8;
 	--accent-color: #666699;
+	--light-accent-color: #8585ad;
+	--lighter-accent-color: #b3b3cc;
 	--mention-color: #423049;
 	--shadow-color: #161617;
 	--active-color: #32cd32;
@@ -105,7 +107,8 @@ main,
 #settings_content,
 .settings_row,
 #login_page,
-#login {
+#login,
+.user_details {
 	display: flex;
 }
 
@@ -117,7 +120,8 @@ main,
 .username_status,
 #my_settings,
 #settings_content,
-#login {
+#login,
+.user {
 	flex-direction: column;
 }
 
@@ -163,6 +167,7 @@ main,
 #my_settings,
 .user_group_label,
 .user,
+.user_details,
 #my_user_info {
 	box-sizing: border-box;
 }
@@ -189,7 +194,7 @@ main,
 #my_settings,
 .message,
 .user_group_label,
-.user,
+.user_details,
 .message_info {
 	gap: 5px;
 }
@@ -454,4 +459,44 @@ li {
 #messages {
 	-ms-overflow-style: none;
 	scrollbar-width: none;
+}
+
+input[type="range"] {
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent;
+	cursor: pointer;
+	border: none;
+	mix-blend-mode: difference;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+	background: var(--lighter-accent-color);
+	height: 0.15rem;
+	margin-bottom: 5px;
+}
+
+input[type="range"]::-moz-range-track {
+	background: var(--lighter-accent-color);
+	height: 0.15rem;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	margin-top: -0.4rem;
+	border-radius: 0.1rem;
+	background-color: var(--lighter-accent-color);
+	height: 0.9rem;
+	width: 0.35rem;
+	box-sizing: border-box;
+}
+
+input[type="range"]::-moz-range-thumb {
+	border: none;
+	border-radius: 0.1rem;
+	background-color: var(--lighter-accent-color);
+	height: 0.9rem;
+	width: 0.35rem;
+	box-sizing: border-box;
 }
