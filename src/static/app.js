@@ -37,6 +37,8 @@ const CustomCss = document.querySelector("#custom_css");
 const NotifsToggle = document.querySelector("#notifs_toggle");
 const VoiceDecline = document.querySelector("#voice_decline");
 
+let RingtoneAudio;
+
 const Style = document.createElement("style");
 document.head.appendChild(Style);
 
@@ -214,26 +216,23 @@ ws.addEventListener("message", async (ev) => {
 			VoiceToggle.classList.remove("voice_toggle_joining");
 			VoiceToggle.classList.add("voice_toggle_leave");
 			VoiceToggle.textContent = "Leave Voice";
+			playJoinAudio();
 		} else if (voice === "joined") {
 			const { peer, userId } = msg;
 			const conn = new RTCPeerConnection({ iceServers });
 			peers[peer] = { userId, conn };
 			setupPeerAudioConnection(peer);
+			playJoinAudio();
 			const offer = await conn.createOffer();
 			await conn.setLocalDescription(offer);
 			send({ action: "rtc_signal", peer, data: { offer } });
-		} else if (msg.ring) {
+		}
+		if (msg.ring) {
 			VoiceDecline.hidden = false;
 			VoiceToggle.classList.add("voice_toggle_accept");
 			const ringtoneFile = "/sounds/ringtone.flac";
-			const ringtoneAudio = new Audio(ringtoneFile);
-			ringtoneAudio.play();
-			function stopRingtone() {
-				VoiceToggle.classList.remove("voice_toggle_accept");
-				VoiceDecline.hidden = true;
-				ringtoneAudio.pause();
-				ringtoneAudio.remove();
-			}
+			RingtoneAudio = new Audio(ringtoneFile);
+			RingtoneAudio.play();
 			VoiceToggle.addEventListener("click", stopRingtone);
 			VoiceDecline.addEventListener("click", stopRingtone);
 		}
@@ -264,8 +263,13 @@ ws.addEventListener("message", async (ev) => {
 	}
 
 	if (msg.peerDisconnect) {
-		deletePeer(msg.peerDisconnect);
-		playLeaveAudio();
+		if (voice === "joined") {
+			deletePeer(msg.peerDisconnect);
+			playLeaveAudio();
+		}
+		if (Object.keys(peers).length === 0 && RingtoneAudio) {
+			stopRingtone();
+		}
 	}
 });
 
@@ -362,9 +366,6 @@ function setupPeerAudioConnection(peer) {
 	conn.addEventListener("track", async (event) => {
 		const [remoteStream] = event.streams;
 		processAudioStream(peer, remoteStream);
-		const joinFile = "/sounds/join.flac";
-		const joinAudio = new Audio(joinFile);
-		joinAudio.play();
 	});
 	audioStream.getTracks().forEach((track) => conn.addTrack(track, audioStream));
 }
@@ -671,9 +672,23 @@ VoiceToggle.addEventListener("click", async () => {
 	}
 });
 
+function playJoinAudio() {
+	const joinFile = "/sounds/join.flac";
+	const joinAudio = new Audio(joinFile);
+	joinAudio.volume = 0.9;
+	joinAudio.play();
+}
+
 function playLeaveAudio() {
 	const leaveFile = "/sounds/leave.flac";
 	const leaveAudio = new Audio(leaveFile);
 	leaveAudio.volume = 0.9;
 	leaveAudio.play();
+}
+
+function stopRingtone() {
+	VoiceToggle.classList.remove("voice_toggle_accept");
+	VoiceDecline.hidden = true;
+	RingtoneAudio.pause();
+	RingtoneAudio.remove();
 }
