@@ -28,6 +28,7 @@ const BannerUrl = document.querySelector("#banner_url");
 const ChimesToggle = document.querySelector("#chimes_toggle");
 const CustomCss = document.querySelector("#custom_css");
 const NotifsToggle = document.querySelector("#notifs_toggle");
+const VoiceDecline = document.querySelector("#voice_decline");
 
 const Style = document.createElement("style");
 document.head.appendChild(Style);
@@ -213,6 +214,20 @@ ws.addEventListener("message", async (ev) => {
 			const offer = await conn.createOffer();
 			await conn.setLocalDescription(offer);
 			send({ action: "rtc_signal", peer, data: { offer } });
+		} else if (msg.ring) {
+			VoiceDecline.hidden = false;
+			VoiceToggle.classList.add("voice_toggle_accept");
+			const ringtoneFile = `/sounds/ringtone.flac`;
+			const ringtoneAudio = new Audio(ringtoneFile);
+			ringtoneAudio.play();
+			function stopRingtone() {
+				VoiceToggle.classList.remove("voice_toggle_accept");
+				VoiceDecline.hidden = true;
+				ringtoneAudio.pause();
+				ringtoneAudio.remove();
+			}
+			VoiceToggle.addEventListener("click", stopRingtone);
+			VoiceDecline.addEventListener("click", stopRingtone);
 		}
 	}
 

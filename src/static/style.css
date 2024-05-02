@@ -11,6 +11,8 @@
 	--active-color: #32cd32;
 	--inactive-color: #daa520;
 	--in-call-color: #00bfff;
+	--accept-color: #32cd32;
+	--decline-color: #ff6347;
 	--max-chat-width: 1440px;
 	--sidebar-width: 270px;
 }
@@ -370,7 +372,15 @@ a[href] {
 	border: 2px solid var(--accent-color) !important;
 }
 
-#voice_toggle {
+.voice_toggle_accept {
+	background-color: var(--accept-color);
+}
+
+.voice_toggle_decline {
+	background-color: var(--decline-color);
+}
+
+.voice_button {
 	margin: 4px;
 }
 

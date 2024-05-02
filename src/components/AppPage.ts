@@ -23,7 +23,10 @@ export default function AppPage(
 					</span>
 				</div>
 			</template>
-			<button id="voice_toggle" class="voice_toggle_on">
+			<button id="voice_decline" class="voice_button voice_toggle_decline" hidden>
+				Decline
+			</button>
+			<button id="voice_toggle" class="voice_button voice_toggle_on">
 				Join Voice
 			</button>
 			<div id="me">
