@@ -295,7 +295,8 @@ button {
 }
 
 input,
-textarea {
+textarea,
+#message_editor_content {
 	border: 2px solid var(--light-color);
 }
 
@@ -455,3 +456,31 @@ li {
 	-ms-overflow-style: none;
 	scrollbar-width: none;
 }
+
+/* Text editor stuff */
+div#message_editor_content.focused {
+	border: 2px solid var(--accent-color);
+}
+
+#message_editor {
+ 	max-height: 40vh;
+ 	max-width: 100%;
+ 	display: flex;
+	flex-direction: row;
+	gap: 5px;
+}
+
+#message_editor_content {
+	overflow: auto;
+	overflow: auto; /* Allows quill box to be seen */
+	flex-grow: 1;
+	flex-shrink: 1;
+	min-height: 0px;
+	border-radius: 10px;
+	background: var(--dark-color);
+
+#message_editor_send {
+	flex-shrink: 0;
+	margin-right: 5px;
+}
+

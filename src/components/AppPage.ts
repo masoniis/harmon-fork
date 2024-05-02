@@ -57,10 +57,7 @@ export default function AppPage(
 		<main>
 			<div id="messages">${messages}</div>
 			<div id="message_editor">
-				<textarea
-					id="message_editor_content"
-					name="message_editor_content"
-				></textarea>
+				<div id="message_editor_content"></div>
 				<button id="message_editor_send">Send</button>
 			</div>
 		</main>
@@ -91,6 +88,10 @@ export default function AppPage(
 			type="hidden"
 			value="${stoken}"
 		/>
+
+		<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.6/quill.bubble.css">
+		<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
 		<script src="app.js"></script>
 		<script src="https://unpkg.com/moment"></script>
 	`);
