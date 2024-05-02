@@ -38,8 +38,9 @@ router
 		if (token) {
 			const stoken = await sessions.login(token);
 			if (stoken) {
+				const username = await db.read("username", token);
 				const messages = await db.chat.read();
-				return AppPage(stoken, messages).replaceAll(/\t/g, "");
+				return AppPage(stoken, username, messages).replaceAll(/\t/g, "");
 			}
 		}
 		return LoginPage(true);

@@ -3,7 +3,11 @@ import Page from "./Page";
 
 // TODO: Add settings dialog
 
-export default function AppPage(stoken: string, messages: string) {
+export default function AppPage(
+	stoken: string,
+	username: string,
+	messages: string,
+) {
 	return Page(`
 		<div id="sidebar">
 			<div id="users"></div>
@@ -14,7 +18,7 @@ export default function AppPage(stoken: string, messages: string) {
 				<div class="user">
 					<span class="presence"></span>
 					<span class="username_status">
-						<strong class="username"></strong>
+						<strong class="username">${username}</strong>
 						<span class="status"></span>
 					</span>
 				</div>
