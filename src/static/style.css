@@ -249,7 +249,8 @@ button {
 .my_edit_tip,
 #my_settings_edit_tip,
 .user_group_label,
-dialog *,
+#settings_title,
+.settings_row > label,
 .message_ts,
 #token_copy_tip {
 	color: var(--text-dim-color);
@@ -268,6 +269,10 @@ dialog *,
 input,
 textarea {
 	background: var(--dark-color);
+}
+
+input[type="checkbox"] {
+	accent-color: var(--accent-color);
 }
 
 button,
