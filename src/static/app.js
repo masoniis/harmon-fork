@@ -340,14 +340,6 @@ function processAudioStream(peer, stream) {
 			.querySelector(`#user_${peers[peer].userId}`)
 			.querySelector(".volume_slider");
 		VolumeSlider.hidden = false;
-
-		const RemoteAudio = new Audio();
-		RemoteAudio.id = `audio_${peer}`;
-		RemoteAudio.autoplay = true;
-		document.body.appendChild(RemoteAudio);
-		peers[peer].RemoteAudio = RemoteAudio;
-
-		RemoteAudio.srcObject = dest;
 	}
 }
 
@@ -379,19 +371,11 @@ function setupPeerAudioConnection(peer) {
 
 function deletePeer(peer) {
 	if (peers[peer]) {
-		const {
-			stream,
-			analyser,
-			RemoteAudio,
-			RemoteAudioPre,
-			conn,
-			gainNode,
-			context,
-		} = peers[peer];
+		const { stream, analyser, RemoteAudioPre, conn, gainNode, context } =
+			peers[peer];
 		if (stream) stream.getTracks().forEach((track) => track.stop());
 		if (analyser) analyser.disconnect();
 		if (gainNode) gainNode.disconnect();
-		if (RemoteAudio) RemoteAudio.remove();
 		if (RemoteAudioPre) RemoteAudioPre.remove();
 		if (context) context.close();
 		if (conn) conn.close();

@@ -324,9 +324,9 @@ async function onMessage(
 		user.settings = { ...user.settings, ...settings };
 		pub({ user });
 		await db.write("banner", token, user.banner);
-		await db.write("settings", token, JSON.stringify(settings));
+		await db.write("settings", token, JSON.stringify(user.settings));
 		send(ws, { settings: user.settings });
-		log(token, user, `edit_settings\t${JSON.stringify(settings)}`);
+		log(token, user, `edit_settings\t${JSON.stringify(user.settings)}`);
 	}
 }
 
