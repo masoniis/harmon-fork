@@ -320,6 +320,7 @@ async function onMessage(
 		let { settings } = msg.data;
 		if (!settings) return;
 		user.banner = settings.banner;
+		user.settings = settings;
 		pub({ user });
 		await db.write("banner", token, settings.banner);
 		await db.write("settings", token, JSON.stringify(settings));
