@@ -76,6 +76,10 @@ export default function AppPage(
 					<label for="custom_css">Enter your custom CSS theme here:</label>
 					<textarea id="custom_css" type="text" rows="5"></textarea>
 				</div>
+				<div class="settings_row">
+					<label for="notifs_toggle">Show notification on new messages</label>
+					<input id="notifs_toggle" type="checkbox" />
+				</div>
 			</div>
 		</dialog>
 		<input

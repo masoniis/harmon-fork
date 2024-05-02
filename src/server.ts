@@ -236,7 +236,13 @@ async function onMessage(
 						moment.duration(2, "minute").asMilliseconds()
 				: true;
 			const newMessage = Message(content, user.username, showUsername);
-			pub({ newMessage: { userId: user.id, message: newMessage } });
+			pub({
+				newMessage: {
+					userId: user.id,
+					username: user.username,
+					message: newMessage,
+				},
+			});
 			if (showUsername) lastUsername = { username: user.username, time };
 			const wasInactive = user.stats.inactive;
 			setActive(user);

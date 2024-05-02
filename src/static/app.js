@@ -1,5 +1,6 @@
 let voice = false;
 let ws, stoken, myUserId, users, audioStream, iceServers, mediaTrackConstraints;
+let focused = true;
 
 let peers = {};
 
@@ -26,9 +27,13 @@ const SettingsContent = document.querySelector("#settings_content");
 const BannerUrl = document.querySelector("#banner_url");
 const ChimesToggle = document.querySelector("#chimes_toggle");
 const CustomCss = document.querySelector("#custom_css");
+const NotifsToggle = document.querySelector("#notifs_toggle");
 
 const Style = document.createElement("style");
 document.head.appendChild(Style);
+
+addEventListener("focus", () => (focused = true));
+addEventListener("blur", () => (focused = false));
 
 const tsFormatOtherYear = "D MMM Y [at] h:mm a";
 const tsFormat = "D MMM [at] h:mm a";
@@ -117,10 +122,11 @@ ws.addEventListener("message", async (ev) => {
 	}
 
 	if (msg.settings) {
-		const { chimes, customCss } = msg.settings;
+		const { chimes, customCss, notifs } = msg.settings;
 		ChimesToggle.checked = chimes;
 		CustomCss.value = customCss;
 		Style.innerHTML = customCss;
+		NotifsToggle.checked = notifs;
 	}
 
 	if (msg.newMessage) {
@@ -141,7 +147,15 @@ ws.addEventListener("message", async (ev) => {
 		const MessageContents = Messages.querySelectorAll(".message_content");
 		if (MessageContents.length) {
 			const MessageContent = MessageContents[MessageContents.length - 1];
-			if (MessageContent) msgContentObserver.observe(MessageContent);
+			if (MessageContent) {
+				msgContentObserver.observe(MessageContent);
+				if (NotifsToggle.checked && !focused) {
+					new Notification(msg.newMessage.username, {
+						body: MessageContent.textContent,
+						silent: true,
+					});
+				}
+			}
 		}
 
 		if (ChimesToggle.checked) {
@@ -530,9 +544,18 @@ Settings.addEventListener("close", () => {
 				banner: BannerUrl.value,
 				chimes: ChimesToggle.checked,
 				customCss: CustomCss.value,
+				notifs: NotifsToggle.checked,
 			},
 		},
 	});
+});
+NotifsToggle.addEventListener("change", async () => {
+	if (NotifsToggle.checked) {
+		const perm = await Notification.requestPermission();
+		if (perm !== "granted") {
+			NotifsToggle.checked = false;
+		}
+	}
 });
 
 /*

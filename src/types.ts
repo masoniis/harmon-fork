@@ -24,6 +24,7 @@ export interface UserSettings {
 	banner: string;
 	chimes: boolean;
 	customCss: string;
+	notifs: boolean;
 }
 
 export interface SocketData {
