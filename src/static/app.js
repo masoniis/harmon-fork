@@ -75,6 +75,7 @@ const msgContentObserver = new IntersectionObserver((entries, observer) => {
 });
 
 addEventListener("load", () => {
+	Messages.scrollTop = Messages.scrollHeight;
 	for (const MessageInfo of document.querySelectorAll(".message_info")) {
 		msgInfoObserver.observe(MessageInfo);
 	}
