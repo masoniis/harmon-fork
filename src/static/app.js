@@ -200,7 +200,7 @@ ws.addEventListener("message", async (ev) => {
 	}
 
 	if (msg.peer) {
-		if (msg.userId === myUserId) {
+		if (msg.userId === myUserId && voice === "joining") {
 			voice = "joined";
 			VoiceToggle.classList.remove("voice_toggle_joining");
 			VoiceToggle.classList.add("voice_toggle_leave");
