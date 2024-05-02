@@ -32,6 +32,7 @@ const router = Router({
 
 router
 	.get("/", () => LoginPage())
+	.get("/login", () => LoginPage())
 	.post("/login", async (req) => {
 		const data = await req.formData();
 		const token = data.get("token")?.toString();
