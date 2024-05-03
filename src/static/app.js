@@ -37,6 +37,8 @@ const CustomCss = document.querySelector("#custom_css");
 const NotifsToggle = document.querySelector("#notifs_toggle");
 const VoiceDecline = document.querySelector("#voice_decline");
 
+let RingtoneAudio;
+
 const MessageEditorQuill = new Quill("#message_editor_content", {
 	theme: "bubble",
 	modules: {
@@ -229,26 +231,23 @@ ws.addEventListener("message", async (ev) => {
 			VoiceToggle.classList.remove("voice_toggle_joining");
 			VoiceToggle.classList.add("voice_toggle_leave");
 			VoiceToggle.textContent = "Leave Voice";
+			playJoinAudio();
 		} else if (voice === "joined") {
 			const { peer, userId } = msg;
 			const conn = new RTCPeerConnection({ iceServers });
 			peers[peer] = { userId, conn };
 			setupPeerAudioConnection(peer);
+			playJoinAudio();
 			const offer = await conn.createOffer();
 			await conn.setLocalDescription(offer);
 			send({ action: "rtc_signal", peer, data: { offer } });
-		} else if (msg.ring) {
+		}
+		if (msg.ring) {
 			VoiceDecline.hidden = false;
 			VoiceToggle.classList.add("voice_toggle_accept");
 			const ringtoneFile = "/sounds/ringtone.flac";
-			const ringtoneAudio = new Audio(ringtoneFile);
-			ringtoneAudio.play();
-			function stopRingtone() {
-				VoiceToggle.classList.remove("voice_toggle_accept");
-				VoiceDecline.hidden = true;
-				ringtoneAudio.pause();
-				ringtoneAudio.remove();
-			}
+			RingtoneAudio = new Audio(ringtoneFile);
+			RingtoneAudio.play();
 			VoiceToggle.addEventListener("click", stopRingtone);
 			VoiceDecline.addEventListener("click", stopRingtone);
 		}
@@ -279,8 +278,13 @@ ws.addEventListener("message", async (ev) => {
 	}
 
 	if (msg.peerDisconnect) {
-		deletePeer(msg.peerDisconnect);
-		playLeaveAudio();
+		if (voice === "joined") {
+			deletePeer(msg.peerDisconnect);
+			playLeaveAudio();
+		}
+		if (Object.keys(peers).length === 0 && RingtoneAudio) {
+			stopRingtone();
+		}
 	}
 });
 
@@ -355,14 +359,6 @@ function processAudioStream(peer, stream) {
 			.querySelector(`#user_${peers[peer].userId}`)
 			.querySelector(".volume_slider");
 		VolumeSlider.hidden = false;
-
-		const RemoteAudio = new Audio();
-		RemoteAudio.id = `audio_${peer}`;
-		RemoteAudio.autoplay = true;
-		document.body.appendChild(RemoteAudio);
-		peers[peer].RemoteAudio = RemoteAudio;
-
-		RemoteAudio.srcObject = dest;
 	}
 }
 
@@ -385,28 +381,17 @@ function setupPeerAudioConnection(peer) {
 	conn.addEventListener("track", async (event) => {
 		const [remoteStream] = event.streams;
 		processAudioStream(peer, remoteStream);
-		const joinFile = "/sounds/join.flac";
-		const joinAudio = new Audio(joinFile);
-		joinAudio.play();
 	});
 	audioStream.getTracks().forEach((track) => conn.addTrack(track, audioStream));
 }
 
 function deletePeer(peer) {
 	if (peers[peer]) {
-		const {
-			stream,
-			analyser,
-			RemoteAudio,
-			RemoteAudioPre,
-			conn,
-			gainNode,
-			context,
-		} = peers[peer];
+		const { stream, analyser, RemoteAudioPre, conn, gainNode, context } =
+			peers[peer];
 		if (stream) stream.getTracks().forEach((track) => track.stop());
 		if (analyser) analyser.disconnect();
 		if (gainNode) gainNode.disconnect();
-		if (RemoteAudio) RemoteAudio.remove();
 		if (RemoteAudioPre) RemoteAudioPre.remove();
 		if (context) context.close();
 		if (conn) conn.close();
@@ -703,9 +688,23 @@ VoiceToggle.addEventListener("click", async () => {
 	}
 });
 
+function playJoinAudio() {
+	const joinFile = "/sounds/join.flac";
+	const joinAudio = new Audio(joinFile);
+	joinAudio.volume = 0.9;
+	joinAudio.play();
+}
+
 function playLeaveAudio() {
 	const leaveFile = "/sounds/leave.flac";
 	const leaveAudio = new Audio(leaveFile);
 	leaveAudio.volume = 0.9;
 	leaveAudio.play();
+}
+
+function stopRingtone() {
+	VoiceToggle.classList.remove("voice_toggle_accept");
+	VoiceDecline.hidden = true;
+	RingtoneAudio.pause();
+	RingtoneAudio.remove();
 }

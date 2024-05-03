@@ -528,3 +528,24 @@ input[type="range"]::-moz-range-thumb {
 	width: 0.35rem;
 	box-sizing: border-box;
 }
+
+/* Text editor stuff */
+div#message_editor_content.focused {
+	border: 2px solid var(--accent-color);
+}
+
+#message_editor {
+	max-height: 40vh;
+	gap: 5px;
+}
+
+#message_editor_content {
+	overflow: auto;
+	overflow: auto; /* Allows quill box to be seen */
+	flex-grow: 1;
+	flex-shrink: 1;
+	min-height: 0px;
+	border-radius: 10px;
+	background: var(--dark-color);
+	font-size: 1rem;
+}
