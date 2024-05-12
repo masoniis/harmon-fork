@@ -35,7 +35,7 @@ router
 	.get("/login", () => LoginPage())
 	.post("/login", async (req) => {
 		const data = await req.formData();
-		const token = data.get("token")?.toString();
+		const token = data.get("password")?.toString();
 		if (token) {
 			const stoken = await sessions.login(token);
 			if (stoken) {

@@ -1,6 +1,9 @@
 {
 	"name": "harmon",
 	"module": "index.js",
+	"scripts": {
+		"dev": "bun run ./src/server.ts"
+	},
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/common-tags": "^1.8.4"

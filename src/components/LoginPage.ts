@@ -13,7 +13,7 @@ export default function LoginPage(error = false, token = "") {
 		<div id="login_page">
 			<form id="login" action="/login" method="post">
 				<label for="token">Login</label>
-				<input id="token" name="token" type="password" autofocus />
+				<input id="token" name="password" type="password" autofocus />
 				${error ? ErrorMessage("Invalid token!") : ""}
 				${token ? Token(token) : Register()}
 				<small id="token_copy_tip">${token ? "click to copy" : ""}</small>
